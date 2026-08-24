@@ -140,6 +140,6 @@ Write-Host "Done." -ForegroundColor Green
 Write-Host "Next:" -ForegroundColor White
 Write-Host "  1. Launch AutoCAD 2025+. The bundle autoloads (look for 'ACDMCP' commands)."
 Write-Host "  2. Run ACDMCP_START to open the named pipe."
-Write-Host "  3. Connect with your AI client. Claude Code: /plugin install acd-mcp@acd-mcp."
+Write-Host "  3. Connect with your AI client. Claude Code: /plugin install acd-mcp@cad-mcp."
 Write-Host "                                  Others: pwsh .\Install-Mcp.ps1"
 Write-Host ""

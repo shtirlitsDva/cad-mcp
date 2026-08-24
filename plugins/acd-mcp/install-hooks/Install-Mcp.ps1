@@ -8,7 +8,7 @@
   Idempotent. Re-running updates entries in place.
 
   Claude Code is intentionally NOT in scope here — Claude Code users
-  install via `/plugin install acd-mcp@acd-mcp` which wires the MCP
+  install via `/plugin install acd-mcp@cad-mcp` which wires the MCP
   through the plugin's .mcp.json. Don't double-register.
 
   Companion script: Install-Bundle.ps1 (deploys the AutoCAD plugin DLLs).

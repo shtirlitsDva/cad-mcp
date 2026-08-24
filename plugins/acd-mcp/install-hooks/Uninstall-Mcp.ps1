@@ -9,7 +9,7 @@
   fallback when no CLI is available.
 
   Claude Code is intentionally NOT in scope here — Claude Code users
-  remove via `/plugin uninstall acd-mcp@acd-mcp`.
+  remove via `/plugin uninstall acd-mcp@cad-mcp`.
 
   This script does NOT touch user content (dto-user, scripts, logs).
   Use Uninstall-Bundle.ps1 -Purge for that.

@@ -53,7 +53,7 @@ Copy-Item "$buildOut\*" $targetDir -Recurse
         <FullClassName>Rvt.Mcp.Loader.LoaderApp</FullClassName>
         <AddInId>f4ac6a14-27e4-442f-a254-300c83e2b55a</AddInId>
         <VendorId>DVRL</VendorId>
-        <VendorDescription>Norsyn, https://github.com/shtirlitsDva/ACD-MCP</VendorDescription>
+        <VendorDescription>Norsyn, https://github.com/shtirlitsDva/cad-mcp</VendorDescription>
     </AddIn>
 </RevitAddIns>
 "@ | Set-Content $manifest -Encoding utf8

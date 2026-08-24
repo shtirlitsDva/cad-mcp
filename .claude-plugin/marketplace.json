@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-  "name": "acd-mcp",
-  "description": "ACD-MCP — C# REPL and batch runner inside AutoCAD 2025+.",
+  "name": "cad-mcp",
+  "description": "Run C# inside a live Autodesk process — AutoCAD/Civil 3D and Revit MCP servers.",
   "owner": {
     "name": "Norsyn"
   },
@@ -9,16 +9,16 @@
     {
       "name": "acd-mcp",
       "source": "./plugins/acd-mcp",
-      "description": "Live C# REPL plus multi-file batch runner inside a running AutoCAD 2025+ process.",
-      "repository": "https://github.com/shtirlitsDva/ACD-MCP",
+      "description": "Live C# script session plus multi-file batch runner inside a running AutoCAD / Civil 3D 2025+ process.",
+      "repository": "https://github.com/shtirlitsDva/cad-mcp",
       "keywords": ["autocad", "civil-3d", "csharp", "repl", "batch", "automation"]
     },
     {
       "name": "rvt-mcp",
       "source": "./plugins/rvt-mcp",
-      "description": "Live C# REPL inside a running Revit 2025+ process (revit_script_execute).",
-      "repository": "https://github.com/shtirlitsDva/ACD-MCP",
-      "keywords": ["revit", "csharp", "repl", "automation", "bim"]
+      "description": "Live C# script session inside a running Revit 2025+ process (revit_script_execute).",
+      "repository": "https://github.com/shtirlitsDva/cad-mcp",
+      "keywords": ["revit", "bim", "csharp", "repl", "automation"]
     }
   ]
 }

@@ -1,0 +1,172 @@
+# acd-mcp — AutoCAD / Civil 3D
+
+[< back to the repo overview](../README.md)
+
+An MCP server that runs C# inside a live AutoCAD / Civil 3D process. The client sends C# code; it compiles with Roslyn, runs on AutoCAD's main thread under a document lock, and returns the result. State persists between calls.
+
+## How it works
+
+```
+MCP client ─stdio─▶ Acd.Mcp.Bridge.exe ─named pipe─▶ AutoCAD (Acd.Mcp.dll)
+```
+
+* **`Acd.Mcp`** — AutoCAD plugin (`net8.0-windows8.0`, x64). Hosts the pipe server (`acd-mcp-{pid}`) and runs each request on the UI thread under `LockDocument()` through a persistent `CSharpScript` session.
+* **`Acd.Mcp.Bridge`** — stdio MCP server (`net8.0`). Translates MCP calls to JSON-RPC over the pipe. Auto-discovers AutoCAD when one instance has the plugin loaded. To target a specific instance when several do, pass an optional `pid` on any tool call (per-call), or `--pid <N>` on the Bridge command line (session-wide default). See [Targeting an instance](#targeting-an-instance).
+
+## Requirements
+
+* **AutoCAD 2025+** (supplies the .NET 8 runtime the plugin loads into).
+* **[.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)** — the Bridge runs out-of-process and needs it (else `framework not found`).
+* **Windows.**
+* To build: **.NET 8 SDK**. AutoCAD is not required — references come from NuGet.
+
+## Build
+
+```powershell
+dotnet build src/Autocad/Acd.Mcp/Acd.Mcp.csproj -c Release -p:Platform=x64
+dotnet build src/Autocad/Acd.Mcp.Bridge/Acd.Mcp.Bridge.csproj -c Release -p:Platform=x64
+```
+
+Outputs: `src/Autocad/Acd.Mcp/bin/Release/Acd.Mcp.dll` (load into AutoCAD) and `src/Autocad/Acd.Mcp.Bridge/bin/Release/Acd.Mcp.Bridge.exe` (register with your MCP client). Building the two `.csproj` files directly is the fastest loop. `dotnet build CI.slnf` builds everything in the repo — both products and the shared kernel — and is what CI runs.
+
+## How the plugin loads
+
+One build, `dotnet build -c Release`, loadable either way.
+
+| Loader | How |
+|---|---|
+| AutoCAD | `NETLOAD`, or the `.bundle` autoload |
+| DevReload | point it at `src/Autocad/Acd.Mcp/Acd.Mcp.csproj` |
+
+Under `NETLOAD` and the bundle, AutoCAD's `ExtensionLoader` scans the assembly and registers its `[CommandMethod]`s. DevReload suppresses that scan for assemblies it loads into its own `AssemblyLoadContext` and registers the commands itself through `Utils.AddCommand`, which is removable and so survives repeated reloads.
+
+### NETLOAD
+
+1. `dotnet build Acd.Mcp.csproj -c Release -p:Platform=x64`
+2. In AutoCAD: `NETLOAD` -> `src/Autocad/Acd.Mcp/bin/Release/Acd.Mcp.dll`
+3. `ACDMCP_PING` to verify (the pipe auto-starts on first idle).
+
+### DevReload
+
+Build with `dotnet build Acd.Mcp.csproj -c Release -p:Platform=x64`. [DevReload](https://github.com/shtirlitsDva/DevReload): point it at `src/Autocad/Acd.Mcp/Acd.Mcp.csproj`.
+
+## Install
+
+The MCP-client side (register `Bridge.exe`) and the AutoCAD side (load the plugin) are separate steps.
+
+### Claude Code
+
+```
+/plugin marketplace add https://github.com/shtirlitsDva/cad-mcp
+/plugin install acd-mcp@cad-mcp
+```
+
+Registers `Bridge.exe` and adds skills `/acd-mcp:start|script|batch|add-dto`. Then deploy the bundle:
+
+```powershell
+pwsh ~/.claude/plugins/cache/acd-mcp@cad-mcp/*/install-hooks/Install-Bundle.ps1
+```
+
+Don't run `Install-Mcp.ps1` here — it double-registers.
+
+### Codex app
+
+Settings → Plugins → Add marketplace → `shtirlitsDva/cad-mcp` → install **acd-mcp**. Then:
+
+```powershell
+pwsh "$env:USERPROFILE\.codex\plugins\cache\acd-mcp\cad-mcp\*\install-hooks\Install-Bundle.ps1"
+```
+
+Don't run `Install-Mcp.ps1` here — it double-registers.
+
+### Copilot / Claude Desktop
+
+Download a [release zip](https://github.com/shtirlitsDva/cad-mcp/releases), extract, then:
+
+```powershell
+pwsh install-hooks\Install-Bundle.ps1   # deploy the AutoCAD bundle
+pwsh install-hooks\Install-Mcp.ps1      # register with detected clients
+```
+
+`Install-Mcp.ps1` writes `~/.codex/config.toml`, `%APPDATA%\Code\User\mcp.json`, or `%APPDATA%\Claude\claude_desktop_config.json`. Flags: `-Clients codex,copilot`, `-WhatIf`. Restart the client afterward.
+
+### Inside AutoCAD
+
+Launch AutoCAD 2025+. The bundle autoloads and auto-starts the pipe. Run `ACDMCP_PALETTE` for the SCRIPT + BATCH palette (propose calls auto-open it). To disable auto-start: create `%LOCALAPPDATA%\Acd.Mcp\config.json` with `{ "auto_start": false }`.
+
+### Uninstall
+
+```powershell
+pwsh install-hooks\Uninstall-Mcp.ps1            # Copilot / Claude Desktop only
+pwsh install-hooks\Uninstall-Bundle.ps1         # remove the bundle
+pwsh install-hooks\Uninstall-Bundle.ps1 -Purge  # also delete DTOs, scripts, history, log
+```
+
+Claude Code: `/plugin uninstall acd-mcp@cad-mcp`. Codex app: uninstall from the Plugins panel.
+
+## Build a release
+
+```powershell
+pwsh ./scripts/Build-Release.ps1 -Product acd            # → Deploy/acd-mcp-plugin-v<X.Y.Z>.zip
+pwsh ./scripts/Build-Release.ps1 -Product acd -Publish   # also gh release create + upload
+```
+
+The two products in this repo version independently, so releases are tagged
+per product: `acd-v<X.Y.Z>` here, `rvt-v<X.Y.Z>` for Revit. CI builds + tests
+on every push; an `acd-v*` tag also builds this product's zip and uploads it
+to the GitHub Release. So `git tag acd-vX.Y.Z && git push --tags` cuts a
+release.
+
+## Commands
+
+| Command | Effect |
+|---|---|
+| `ACDMCP_PING` | Version stamp — sanity check. |
+| `ACDMCP_START` / `ACDMCP_STOP` | Start / stop the pipe listener. |
+| `ACDMCP_STATUS` | Listener state, PID, pipe name, session state. |
+| `ACDMCP_RESET` | Drop the script session (declared variables/usings gone). |
+| `ACDMCP_PALETTE` | Open the SCRIPT + BATCH palette. |
+
+The palette shares its script session with the MCP, so a `var` typed in the palette is visible to the next `autocad_script_execute`, and vice versa. Diagnostic log: `%LOCALAPPDATA%\Acd.Mcp\log.txt`.
+
+## MCP surface
+
+Six tools, five resources. Every tool takes an optional **`pid`** (the AutoCAD process id) as its last argument — see [Targeting an instance](#targeting-an-instance).
+
+### Tools
+
+* **`autocad_script_execute(code, timeout_ms?, pid?)`** — run C# on the main thread under a doc lock. Globals: `Doc`, `Db`, `Ed`, `CivilDoc` (null in non-Civil drawings), `Acd`. Default imports cover `System`, LINQ, IO, Text and `Autodesk.AutoCAD.*`; add `using Autodesk.Civil.DatabaseServices;` yourself when needed. Declarations persist. Returns `ExecuteResult` (`success`, `return_value_json`, `elapsed_ms`, plus `stdout`, `stderr`, `diagnostics` only when non-empty).
+* **`autocad_script_propose(name, script_body, input_summary?, pid?)`** — stage a single-drawing script in the SCRIPT palette for review.
+* **`autocad_batch_propose_script(name, script_body, input_summary?, pid?)`** — save + load a batch script into the BATCH palette.
+* **`autocad_batch_run_test(name?, pid?)`** — TEST-run the batch script over the selected folder/mask; opens each drawing read-shared and rolls back. There is no live-run tool — the user runs Live in person.
+* **`autocad_batch_list_files(pid?)`** — return the BATCH palette's current folder, mask, recurse flag, and matched file list.
+* **`autocad_get_selection(pid?)`** — return the active drawing's pickfirst selection (`document_name`, `document_path`, `count`, `entities[]`).
+
+All tools except `autocad_script_execute` return a discriminated shape — check `ok` first; on failure read `error_message`. `autocad_script_execute` returns `ExecuteResult` directly (compile errors in `diagnostics`, runtime errors in `stderr`).
+
+### Resources
+
+* `acd-mcp://batch-runs/recent{?limit,offset}` — completed runs, newest first.
+* `acd-mcp://batch-runs/{run_id}` — per-file result of one run.
+* `acd-mcp://batch-runs/last` — most recent run.
+* `acd-mcp://dto-system/diagnostics` — DTO files that failed to compile.
+* `acd-mcp://status` — live capability snapshot (pipe/palette state, per-tool ready/degraded + error codes); read it when a tool returns a transport error.
+
+### Targeting an instance
+
+With a single AutoCAD that has `Acd.Mcp` loaded, omit `pid` — the Bridge finds it. With two or more loaded, pass `pid` (the AutoCAD process id) on the tool call to pick one; otherwise the Bridge returns error code `MULTIPLE_AUTOCAD_PLUGINS`. The `--pid <N>` Bridge CLI flag sets a session-wide default that a per-call `pid` overrides.
+
+Transport error codes (surfaced in the failure shape / `stderr` and in the `acd-mcp://status` resource): `NO_AUTOCAD_FOUND`, `PIPE_NOT_LISTENING`, `AMBIGUOUS_AUTOCADS`, `MULTIPLE_AUTOCAD_PLUGINS`, `PINNED_PID_GONE`, `PIPE_BROKEN`.
+
+## Limitations
+
+* The snippet blocks AutoCAD's main thread. `timeout_ms` cancels at the next `CancellationToken` check; a spin loop can't be interrupted without killing AutoCAD.
+* No sandbox — arbitrary C# runs in-process. Trusted-developer tool. The pipe relies on the default Windows named-pipe ACL (no custom ACL is set).
+* Roslyn-emitted assemblies accumulate; `ACDMCP_RESET` drops session state, an AutoCAD restart frees the memory.
+* Modal AutoCAD dialogs block the pipe until closed.
+
+See [`design/architecture.md`](design/architecture.md) for design rationale.
+
+## License
+
+TBD.
