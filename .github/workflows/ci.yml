@@ -1,20 +1,28 @@
-# CI for ACD-MCP. Builds the solution on every push (including the
-# AutoCAD plugin DLL — AutoCAD 2025 + Civil 3D 2025 refs come from NuGet,
-# so no AutoCAD install is required on the runner). On tag push (v*),
-# also produces the release zip and uploads it to a GitHub Release.
+# CI for cad-mcp. Builds and tests the whole tree on every push — both
+# products (acd-mcp for AutoCAD/Civil 3D, rvt-mcp for Revit) plus the shared
+# kernel. AutoCAD 2025, Civil 3D 2025 and Revit 2025 reference assemblies all
+# come from NuGet, so no Autodesk product is installed on the runner.
 #
-# We build Acd.Mcp.CI.slnf, NOT Acd.Mcp.sln. The filter is the full
-# solution MINUS tests/Rvt.Mcp.Tests, which references the REAL installed
-# RevitAPI.dll (C:\Program Files\Autodesk\Revit 2025) — absent on the
-# runner, so that one project can't build CI-side. NOTE: a filter lists
-# the projects to build, so any NEW project must be added to the .slnf or
-# it won't be built/tested on CI.
+# We build CI.slnf, NOT Acd.Mcp.sln. The filter is the full solution MINUS
+# tests/Revit/Rvt.Mcp.Tests.RequiresRevit, which constructs real
+# Autodesk.Revit.DB types; RevitAPI.dll P/Invokes into native Revit DLLs that
+# no NuGet package can supply. Everything else in the Revit suite is headless
+# and DOES run here.
+#
+# A solution filter lists projects explicitly, so a project added to the .sln
+# but not the .slnf would silently never be built or tested. The
+# "Verify CI filter coverage" step below turns that drift into a red build
+# instead of invisible coverage loss.
+#
+# Releases are per-product and independently versioned:
+#   acd-v<X.Y.Z>  -> Deploy/acd-mcp-plugin-v<X.Y.Z>.zip
+#   rvt-v<X.Y.Z>  -> Deploy/rvt-mcp-plugin-v<X.Y.Z>.zip
 name: CI
 
 on:
   push:
     branches: [master, main]
-    tags: ['v*']
+    tags: ['acd-v*', 'rvt-v*']
   pull_request:
     branches: [master, main]
 
@@ -28,14 +36,20 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Guard first: a drifted filter makes every step after it lie about
+      # coverage, so fail before spending build minutes.
+      - name: Verify CI filter coverage
+        shell: pwsh
+        run: pwsh ./scripts/Test-CIFilterCoverage.ps1
+
       - name: Restore
-        run: dotnet restore Acd.Mcp.CI.slnf
+        run: dotnet restore CI.slnf
 
       - name: Build (CI filter — solution minus the Revit-install-only test project)
-        run: dotnet build Acd.Mcp.CI.slnf -c Release -p:Platform=x64 --no-restore
+        run: dotnet build CI.slnf -c Release -p:Platform=x64 --no-restore
 
       - name: Test
-        run: dotnet test Acd.Mcp.CI.slnf -c Release -p:Platform=x64 --no-restore --no-build --verbosity normal
+        run: dotnet test CI.slnf -c Release -p:Platform=x64 --no-restore --no-build --verbosity normal
 
       - name: Lint installer + release scripts (PSScriptAnalyzer)
         shell: pwsh
@@ -44,16 +58,18 @@ jobs:
           # Invoke-ScriptAnalyzer's -Path is [String], not [String[]] — loop
           # rather than pass a comma-list (silent confusion otherwise).
           $issues = @()
-          foreach ($p in 'plugins/acd-mcp/install-hooks','scripts') {
-            $issues += Invoke-ScriptAnalyzer -Path $p -Recurse -Severity Warning,Error
+          foreach ($p in 'plugins/acd-mcp/install-hooks','plugins/rvt-mcp/install-hooks','scripts') {
+            if (Test-Path $p) {
+              $issues += Invoke-ScriptAnalyzer -Path $p -Recurse -Severity Warning,Error
+            }
           }
           $issues | Format-Table -AutoSize
           if ($issues | Where-Object { $_.Severity -eq 'Error' }) { exit 1 }
 
   release:
-    # Only on tag push. Reuses the same Build-Release.ps1 a maintainer would
-    # run locally, then `gh release create`s the resulting zip.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Only on a product tag. Reuses the same Build-Release.ps1 a maintainer
+    # would run locally, scoped to the product the tag names.
+    if: startsWith(github.ref, 'refs/tags/acd-v') || startsWith(github.ref, 'refs/tags/rvt-v')
     needs: build-and-test
     runs-on: windows-2022
     permissions:
@@ -65,12 +81,26 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build release zip
+      - name: Resolve product and version from tag
+        id: tag
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v',''
-          pwsh ./scripts/Build-Release.ps1 -Version $version
+          if ($tag -notmatch '^(acd|rvt)-v(.+)$') { throw "Unrecognised release tag: $tag" }
+          $product = $Matches[1]
+          $version = $Matches[2]
+          $plugin  = if ($product -eq 'acd') { 'acd-mcp' } else { 'rvt-mcp' }
+          "product=$product" | Out-File $env:GITHUB_OUTPUT -Append
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
+          "zip=Deploy/$plugin-plugin-v$version.zip" | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host "product=$product version=$version"
+
+      - name: Build release zip
+        shell: pwsh
+        run: |
+          pwsh ./scripts/Build-Release.ps1 `
+            -Product '${{ steps.tag.outputs.product }}' `
+            -Version '${{ steps.tag.outputs.version }}'
 
       - name: Upload zip to GitHub Release
         env:
@@ -78,8 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v',''
-          $zip = "Deploy/acd-mcp-plugin-v$version.zip"
+          $zip = "${{ steps.tag.outputs.zip }}"
           if (-not (Test-Path $zip)) { throw "Release zip not found at $zip" }
           # If the tag-release already exists (e.g. created manually), upload
           # the asset to it; otherwise create the release and upload.
@@ -87,5 +116,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $zip --clobber
           } else {
-            gh release create $tag $zip --title "ACD-MCP $tag" --generate-notes
+            gh release create $tag $zip --title "$tag" --generate-notes
           }

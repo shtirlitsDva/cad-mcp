@@ -1,57 +1,70 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-  Build, assemble, and (optionally) publish an ACD-MCP plugin release.
+  Build, assemble, and (optionally) publish a release of acd-mcp, rvt-mcp, or both.
 
 .DESCRIPTION
-  This script is the release pipeline. Runs locally or in CI — AutoCAD 2025
-  and Civil 3D 2025 reference assemblies come from NuGet (AutoCAD.NET 25.0.1
-  + Speckle.Civil3D.API 2025.0.0, ExcludeAssets=runtime), so no AutoCAD
-  install is required on the build machine. The .github/workflows/ci.yml
-  "release" job invokes this script on tag push.
+  This repo ships TWO independently versioned products out of one tree:
 
-  What it does:
-    1. dotnet publish Acd.Mcp.Bridge → plugins/acd-mcp/bin/ (THE committed
-       binaries — Claude Code's /plugin install launches Bridge from here
-       via .mcp.json's ${CLAUDE_PLUGIN_ROOT}/bin/Acd.Mcp.Bridge.exe; Codex's
-       /plugin install uses codex.mcp.json's ./bin/Acd.Mcp.Bridge.exe).
-    2. dotnet build  Acd.Mcp.CI.slnf → Acd.Mcp.dll + transitive deps
-       (filter = solution minus the Revit-install-only test project)
-    3. Assemble Deploy/acd-mcp-plugin/ from the plugins/acd-mcp/ folder
-       + autocad-bundle/ACD-MCP.bundle/Contents/ (Acd.Mcp.dll + deps).
-    4. Zip it to Deploy/acd-mcp-plugin-v<X.Y.Z>.zip
-    5. (Optional) Create a GH Release and upload the zip with gh CLI.
+    acd-mcp  — C# REPL + batch runner inside AutoCAD / Civil 3D 2025+
+    rvt-mcp  — C# script session inside Revit 2025+
 
-  After running locally, REMEMBER TO:
-    git add plugins/acd-mcp/bin/
-    git commit -m "Refresh Bridge binary for v<X.Y.Z>"
-    git tag v<X.Y.Z>
+  Each has its own plugin.json version and its own release tag namespace
+  (acd-v<X.Y.Z> / rvt-v<X.Y.Z>), because they move at different speeds. This
+  script is the release pipeline for either or both. It runs locally or in CI:
+  AutoCAD, Civil 3D and Revit reference assemblies all come from NuGet
+  (ExcludeAssets=runtime), so no Autodesk product needs to be installed on
+  the build machine.
+
+  What it does, per selected product:
+    1. dotnet publish the bridge → plugins/<product>/bin/ (THE committed
+       binaries — /plugin install launches the bridge from here via
+       .mcp.json's ${CLAUDE_PLUGIN_ROOT}/bin/<Bridge>.exe, and Codex's
+       codex.mcp.json's ./bin/<Bridge>.exe).
+    2. dotnet build CI.slnf → the in-process plugin assemblies + deps.
+    3. Assemble Deploy/<product>-plugin/ from plugins/<product>/ plus the
+       host-specific payload (AutoCAD .bundle / Revit add-in folder).
+    4. Zip it to Deploy/<product>-plugin-v<X.Y.Z>.zip
+    5. (Optional) Create the GH Release and upload the zip.
+
+  After running locally, REMEMBER TO commit the refreshed bridge binaries —
+  without that, /plugin install pulls stale binaries from master:
+    git add plugins/<product>/bin/
+    git commit -m "Refresh <product> bridge binary for v<X.Y.Z>"
+    git tag <acd|rvt>-v<X.Y.Z>
     git push --tags
-  CI then auto-uploads the zip to the GitHub Release (.github/workflows/ci.yml).
+  CI then uploads the zip to the GitHub Release (.github/workflows/ci.yml).
+
+.PARAMETER Product
+  Which product to release: acd, rvt, or both. Default: both.
 
 .PARAMETER Configuration
   dotnet build configuration. Default: Release.
 
 .PARAMETER Version
-  Override the version. Defaults to the "version" field in plugin.json.
+  Override the version. Only valid with a single -Product (the two products
+  version independently, so one number cannot mean both). Defaults to the
+  "version" field in that product's plugin.json.
 
 .PARAMETER Publish
-  Also create a GitHub Release tag "v<Version>" and upload the zip.
-  Requires the `gh` CLI to be authenticated.
+  Also create GitHub Release tag "<product>-v<Version>" and upload the zip.
+  Requires an authenticated `gh` CLI.
 
 .PARAMETER SkipBuild
   Skip dotnet build/publish — only re-assemble + zip from existing bin/.
 
 .EXAMPLE
   pwsh ./scripts/Build-Release.ps1
-  # Build + assemble + zip. Result in Deploy/.
+  # Build + assemble + zip BOTH products. Results in Deploy/.
 
 .EXAMPLE
-  pwsh ./scripts/Build-Release.ps1 -Publish
-  # Same, then `gh release create vX.Y.Z` and upload the zip.
+  pwsh ./scripts/Build-Release.ps1 -Product rvt -Publish
+  # Revit only, then `gh release create rvt-vX.Y.Z` and upload the zip.
 #>
 [CmdletBinding()]
 param(
+    [ValidateSet('acd', 'rvt', 'both')]
+    [string]   $Product = 'both',
     [string]   $Configuration = 'Release',
     [string]   $Version,
     [switch]   $Publish,
@@ -68,145 +81,202 @@ function Write-Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)   { Write-Host "  ✓ $msg" -ForegroundColor Green }
 function Fail($msg)       { Write-Host "  ✗ $msg" -ForegroundColor Red; throw $msg }
 
-# ─── version ────────────────────────────────────────────────────────────────
+$products = if ($Product -eq 'both') { @('acd', 'rvt') } else { @($Product) }
 
-if (-not $Version) {
-    $manifest = Get-Content 'plugins/acd-mcp/.claude-plugin/plugin.json' -Raw | ConvertFrom-Json
-    $Version  = $manifest.version
+if ($Version -and $products.Count -gt 1) {
+    Fail "-Version requires a single -Product. acd-mcp and rvt-mcp version independently."
 }
-if (-not $Version) { Fail "Could not determine version (no -Version, no plugin.json 'version' field)." }
-Write-Step "Building release v$Version ($Configuration)"
 
-# ─── deploy paths ───────────────────────────────────────────────────────────
+# ─── per-product definitions ────────────────────────────────────────────────
+# Everything that differs between the two releases lives here, so the staging
+# and publishing code below stays product-agnostic.
+$Definitions = @{
+    acd = @{
+        PluginName   = 'acd-mcp'
+        TagPrefix    = 'acd'
+        ReleaseTitle = 'ACD-MCP'
+        BridgeProj   = 'src/Autocad/Acd.Mcp.Bridge/Acd.Mcp.Bridge.csproj'
+        BridgeExe    = 'Acd.Mcp.Bridge.exe'
+        # In-process plugin whose build output is the host payload.
+        HostProj     = 'src/Autocad/Acd.Mcp/Acd.Mcp.csproj'
+        HostOutDir   = 'src/Autocad/Acd.Mcp/bin'
+    }
+    rvt = @{
+        PluginName   = 'rvt-mcp'
+        TagPrefix    = 'rvt'
+        ReleaseTitle = 'RVT-MCP'
+        BridgeProj   = 'src/Revit/Rvt.Mcp.Bridge/Rvt.Mcp.Bridge.csproj'
+        BridgeExe    = 'Rvt.Mcp.Bridge.exe'
+        # The loader pulls the engine in by ProjectReference, so one build
+        # produces the complete add-in folder (loader + engine + Roslyn).
+        HostProj     = 'src/Revit/Rvt.Mcp.Loader/Rvt.Mcp.Loader.csproj'
+        HostOutDir   = 'src/Revit/Rvt.Mcp.Loader/bin'
+    }
+}
 
-$deployRoot   = Join-Path $repoRoot 'Deploy'
-$pluginStage  = Join-Path $deployRoot 'acd-mcp-plugin'
-$zipPath      = Join-Path $deployRoot "acd-mcp-plugin-v$Version.zip"
-
-if (Test-Path $pluginStage) { Remove-Item $pluginStage -Recurse -Force }
-New-Item -ItemType Directory -Path $pluginStage -Force | Out-Null
-
-# ─── build ──────────────────────────────────────────────────────────────────
-
-$pluginRoot = Join-Path $repoRoot 'plugins/acd-mcp'
-$repoBinDir = Join-Path $pluginRoot 'bin'
+# ─── shared build (both products come out of the same filter) ───────────────
 
 if (-not $SkipBuild) {
-    Write-Step "dotnet publish Acd.Mcp.Bridge → plugins/acd-mcp/bin/"
-    # Publish directly into the committed plugins/acd-mcp/bin/. This is the
-    # SAME bin/ that BOTH Claude Code and Codex /plugin install read (per
-    # .mcp.json's ${CLAUDE_PLUGIN_ROOT}/bin/Acd.Mcp.Bridge.exe and
-    # codex.mcp.json's ./bin/Acd.Mcp.Bridge.exe), so refreshing it here
-    # keeps marketplace installs and the GitHub Release zip in lockstep.
-    # Wipe-then-publish so removed transitive deps from a prior build don't
-    # linger.
-    if (Test-Path $repoBinDir) {
-        Get-ChildItem $repoBinDir -File | Remove-Item -Force
+    Write-Step "dotnet build CI.slnf"
+    dotnet build 'CI.slnf' -c $Configuration -p:Platform=x64
+    if ($LASTEXITCODE -ne 0) { Fail "Solution build failed" }
+    Write-Ok "Solution built"
+}
+
+$zips = @()
+
+foreach ($key in $products) {
+    $def         = $Definitions[$key]
+    $pluginName  = $def.PluginName
+    $pluginRoot  = Join-Path $repoRoot "plugins/$pluginName"
+    $repoBinDir  = Join-Path $pluginRoot 'bin'
+
+    # ─── version ────────────────────────────────────────────────────────────
+    $ver = $Version
+    if (-not $ver) {
+        $manifest = Get-Content (Join-Path $pluginRoot '.claude-plugin/plugin.json') -Raw | ConvertFrom-Json
+        $ver = $manifest.version
     }
-    dotnet publish 'src/Autocad/Acd.Mcp.Bridge/Acd.Mcp.Bridge.csproj' `
-        -c $Configuration `
-        -o $repoBinDir `
-        --self-contained false `
-        -p:PublishSingleFile=false
-    if ($LASTEXITCODE -ne 0) { Fail "Bridge publish failed" }
-    # Drop debug symbols from the committed bin/ — they bloat the repo
-    # without helping users. dotnet doesn't have a publish flag to skip
-    # the pdb cleanly, so prune after the fact.
-    Get-ChildItem $repoBinDir -File -Filter '*.pdb' | Remove-Item -Force
-    Write-Ok "Bridge published to $repoBinDir"
+    if (-not $ver) { Fail "Could not determine version for $pluginName." }
 
-    # Build the CI filter (solution minus tests/Rvt.Mcp.Tests, which needs a
-    # local Revit install). The release only needs the production assemblies,
-    # never the test projects, so the filter is the correct target both here
-    # and in the Revit-less CI "release" job that invokes this script.
-    Write-Step "dotnet build Acd.Mcp.CI.slnf"
-    dotnet build 'Acd.Mcp.CI.slnf' -c $Configuration -p:Platform=x64
-    if ($LASTEXITCODE -ne 0) { Fail "Plugin build failed" }
-    Write-Ok "Plugin built"
+    Write-Host ''
+    Write-Step "$pluginName v$ver ($Configuration)"
+
+    $pluginStage = Join-Path $repoRoot "Deploy/$pluginName-plugin"
+    $zipPath     = Join-Path $repoRoot "Deploy/$pluginName-plugin-v$ver.zip"
+
+    if (Test-Path $pluginStage) { Remove-Item $pluginStage -Recurse -Force }
+    New-Item -ItemType Directory -Path $pluginStage -Force | Out-Null
+
+    # ─── bridge → committed plugins/<product>/bin/ ──────────────────────────
+    if (-not $SkipBuild) {
+        Write-Step "dotnet publish $($def.BridgeExe) → plugins/$pluginName/bin/"
+        # Wipe-then-publish so transitive deps dropped by a newer build don't
+        # linger in the committed folder.
+        if (Test-Path $repoBinDir) { Get-ChildItem $repoBinDir -File | Remove-Item -Force }
+        dotnet publish $def.BridgeProj `
+            -c $Configuration `
+            -o $repoBinDir `
+            --self-contained false `
+            -p:PublishSingleFile=false
+        if ($LASTEXITCODE -ne 0) { Fail "$pluginName bridge publish failed" }
+        # Debug symbols bloat the committed bin/ without helping users. dotnet
+        # has no publish flag to skip the pdb cleanly, so prune after the fact.
+        Get-ChildItem $repoBinDir -File -Filter '*.pdb' | Remove-Item -Force
+        Write-Ok "Bridge published to $repoBinDir"
+    }
+
+    # ─── stage plugin layout ────────────────────────────────────────────────
+    Write-Step "Assembling plugin layout at $pluginStage"
+
+    # Everything inside plugins/<product>/ IS the plugin: .claude-plugin/,
+    # .codex-plugin/, .mcp.json, codex.mcp.json, skills/, install-hooks/, bin/.
+    Copy-Item (Join-Path $pluginRoot '*') $pluginStage -Recurse
+    Copy-Item 'README.md' $pluginStage
+    $productDoc = Join-Path $repoRoot "docs/$pluginName.md"
+    if (Test-Path $productDoc) { Copy-Item $productDoc $pluginStage }
+    Write-Ok "Plugin metadata + bridge staged"
+
+    # ─── host payload (the in-process half) ─────────────────────────────────
+    $hostBuildOut = Join-Path $repoRoot "$($def.HostOutDir)/$Configuration"
+    if (-not (Test-Path $hostBuildOut)) {
+        Fail "Host build output not found at $hostBuildOut. Did dotnet build succeed?"
+    }
+
+    if ($key -eq 'acd') {
+        # AutoCAD Autoloader bundle: manifest + Contents/ populated from the
+        # plugin's build output (Acd.Mcp.dll + the transitive deps MSBuild
+        # already arranged).
+        $bundleSrc = Join-Path $repoRoot 'autocad-bundle/ACD-MCP.bundle'
+        $bundleDst = Join-Path $pluginStage 'autocad-bundle/ACD-MCP.bundle'
+        New-Item -ItemType Directory -Path $bundleDst -Force | Out-Null
+        Copy-Item (Join-Path $bundleSrc 'PackageContents.xml') $bundleDst
+
+        $contentsDst = Join-Path $bundleDst 'Contents'
+        New-Item -ItemType Directory -Path $contentsDst -Force | Out-Null
+        Get-ChildItem $hostBuildOut -File |
+            Where-Object { $_.Extension -in '.dll', '.pdb', '.json' } |
+            Copy-Item -Destination $contentsDst -Force
+        Write-Ok "AutoCAD bundle staged ($((Get-ChildItem $contentsDst).Count) files)"
+    }
+    else {
+        # Revit add-in payload: the loader's whole output folder. The .addin
+        # manifest is written at install time by install-hooks/Install-Addin.ps1,
+        # which needs the target Revit year — it cannot be baked in here.
+        $addinDst = Join-Path $pluginStage 'revit-addin'
+        New-Item -ItemType Directory -Path $addinDst -Force | Out-Null
+        Copy-Item (Join-Path $hostBuildOut '*') $addinDst -Recurse -Force
+        if (-not (Test-Path (Join-Path $addinDst 'Rvt.Mcp.Loader.dll'))) {
+            Fail "Rvt.Mcp.Loader.dll missing from staged add-in payload."
+        }
+        Write-Ok "Revit add-in staged ($((Get-ChildItem $addinDst -File).Count) files)"
+    }
+
+    # ─── zip ────────────────────────────────────────────────────────────────
+    Write-Step "Zipping to $zipPath"
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    Compress-Archive -Path (Join-Path $pluginStage '*') -DestinationPath $zipPath -Force
+    Write-Ok "Wrote $zipPath ($([math]::Round(((Get-Item $zipPath).Length / 1MB), 2)) MB)"
+
+    $zips += [pscustomobject]@{
+        Product = $pluginName
+        Version = $ver
+        Tag     = "$($def.TagPrefix)-v$ver"
+        Title   = "$($def.ReleaseTitle) v$ver"
+        Path    = $zipPath
+        BinDir  = "plugins/$pluginName/bin"
+    }
 }
-
-# ─── stage plugin layout ────────────────────────────────────────────────────
-
-Write-Step "Assembling plugin layout at $pluginStage"
-
-# 1. Everything inside plugins/acd-mcp/ IS the plugin. Mirror it into the
-#    zip stage root. That covers .claude-plugin/, .codex-plugin/, .mcp.json,
-#    codex.mcp.json, skills/, install-hooks/, and bin/.
-Copy-Item (Join-Path $pluginRoot '*') $pluginStage -Recurse
-Copy-Item 'README.md' $pluginStage
-Write-Ok "Plugin metadata + Bridge.exe staged"
-
-# 3. AutoCAD bundle: copy structure + populate Contents/ from plugin bin.
-$pluginBundleSrc = 'autocad-bundle/ACD-MCP.bundle'
-$pluginBundleDst = Join-Path $pluginStage 'autocad-bundle\ACD-MCP.bundle'
-New-Item -ItemType Directory -Path $pluginBundleDst -Force | Out-Null
-Copy-Item (Join-Path $pluginBundleSrc 'PackageContents.xml') $pluginBundleDst
-
-$contentsDst = Join-Path $pluginBundleDst 'Contents'
-New-Item -ItemType Directory -Path $contentsDst -Force | Out-Null
-
-$pluginBuildOut = "src/Autocad/Acd.Mcp/bin/$Configuration"
-if (-not (Test-Path $pluginBuildOut)) {
-    Fail "Plugin build output not found at $pluginBuildOut. Did dotnet build succeed?"
-}
-# Copy every file in the plugin's bin output (Acd.Mcp.dll + its transitive
-# deps that MSBuild already arranged for us). Skip pdb/xml docs to keep the
-# bundle small; uncomment if you want symbols.
-Get-ChildItem $pluginBuildOut -File |
-    Where-Object { $_.Extension -in '.dll', '.pdb' } |
-    Copy-Item -Destination $contentsDst -Force
-Write-Ok "AutoCAD bundle contents staged ($((Get-ChildItem $contentsDst).Count) files)"
-
-# ─── zip ────────────────────────────────────────────────────────────────────
-
-Write-Step "Zipping to $zipPath"
-if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Compress-Archive -Path (Join-Path $pluginStage '*') -DestinationPath $zipPath -Force
-Write-Ok "Wrote $zipPath ($([math]::Round(((Get-Item $zipPath).Length / 1MB), 2)) MB)"
 
 # ─── publish ────────────────────────────────────────────────────────────────
 
 if ($Publish) {
-    Write-Step "gh release create v$Version"
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        Fail "gh CLI not found. Install from https://cli.github.com or skip -Publish."
+        Fail "gh CLI not found. Install from https://cli.github.com or drop -Publish."
     }
-
-    $tag = "v$Version"
-    $existing = gh release view $tag 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  Release $tag already exists — uploading asset only" -ForegroundColor Yellow
-        gh release upload $tag $zipPath --clobber
-    } else {
-        gh release create $tag $zipPath `
-            --title "ACD-MCP $tag" `
-            --generate-notes
+    foreach ($z in $zips) {
+        Write-Step "gh release create $($z.Tag)"
+        gh release view $z.Tag 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Release $($z.Tag) already exists — uploading asset only" -ForegroundColor Yellow
+            gh release upload $z.Tag $z.Path --clobber
+        } else {
+            gh release create $z.Tag $z.Path --title $z.Title --generate-notes
+        }
+        Write-Ok "Published $($z.Tag)"
     }
-    Write-Ok "Published $tag"
 }
 
-Write-Host ""
-Write-Host "Release artifact: $zipPath" -ForegroundColor Green
-Write-Host ""
+# ─── summary ────────────────────────────────────────────────────────────────
 
-# Nudge the maintainer if bin/ drifted from git. Without a refresh-and-commit,
-# Claude Code's /plugin install would pull stale Bridge binaries from master.
+Write-Host ''
+foreach ($z in $zips) {
+    Write-Host "Release artifact: $($z.Path)" -ForegroundColor Green
+}
+Write-Host ''
+
+# Nudge the maintainer if any committed bin/ drifted from git. Without a
+# refresh-and-commit, /plugin install pulls stale bridges from master.
 if (Get-Command git -ErrorAction SilentlyContinue) {
-    $dirtyBin = git status --porcelain -- plugins/acd-mcp/bin 2>$null
-    if ($dirtyBin) {
-        Write-Host "  ! plugins/acd-mcp/bin/ has uncommitted changes — commit them so /plugin install picks up the refresh:" -ForegroundColor Yellow
-        Write-Host "    git add plugins/acd-mcp/bin/"
-        Write-Host "    git commit -m `"Refresh Bridge binary for v$Version`""
-        Write-Host "    git tag v$Version && git push --tags"
-        Write-Host ""
+    foreach ($z in $zips) {
+        $dirtyBin = git status --porcelain -- $z.BinDir 2>$null
+        if ($dirtyBin) {
+            Write-Host "  ! $($z.BinDir)/ has uncommitted changes — commit so /plugin install picks up the refresh:" -ForegroundColor Yellow
+            Write-Host "    git add $($z.BinDir)/"
+            Write-Host "    git commit -m `"Refresh $($z.Product) bridge binary for v$($z.Version)`""
+            Write-Host "    git tag $($z.Tag) && git push --tags"
+            Write-Host ''
+        }
     }
 }
 
 Write-Host "Users install with one of:" -ForegroundColor White
-Write-Host "  Claude Code: /plugin marketplace add https://github.com/shtirlitsDva/ACD-MCP"
-Write-Host "               /plugin install acd-mcp@acd-mcp                 # uses committed bin/"
-Write-Host "               claude --plugin-url <release-zip-url>           # one-off, from release zip"
-Write-Host "  Others:      Download zip, extract, then:"
-Write-Host "                 pwsh install-hooks\Install-Bundle.ps1   # AutoCAD bundle"
-Write-Host "                 pwsh install-hooks\Install-Mcp.ps1      # Codex/Copilot/Claude Desktop"
-Write-Host ""
+Write-Host "  Claude Code: /plugin marketplace add https://github.com/shtirlitsDva/cad-mcp"
+Write-Host "               /plugin install acd-mcp@cad-mcp      # AutoCAD / Civil 3D"
+Write-Host "               /plugin install rvt-mcp@cad-mcp      # Revit"
+Write-Host "  Others:      Download the product zip, extract, then:"
+Write-Host "                 acd-mcp: pwsh install-hooks\Install-Bundle.ps1   # AutoCAD bundle"
+Write-Host "                          pwsh install-hooks\Install-Mcp.ps1      # Codex/Copilot/Claude Desktop"
+Write-Host "                 rvt-mcp: pwsh install-hooks\Install-Addin.ps1    # Revit add-in"
+Write-Host "                          (non-Claude clients: point them at bin\Rvt.Mcp.Bridge.exe)"
+Write-Host ''
