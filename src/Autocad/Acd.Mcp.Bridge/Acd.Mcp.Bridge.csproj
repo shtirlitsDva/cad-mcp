@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -26,11 +26,13 @@
 
 
   <ItemGroup>
-    <!-- Share the wire-domain types with the plugin via linked compile. Both files
-         are AutoCAD-free so this is clean. JSON is the actual boundary; type identity
-         across processes is irrelevant. -->
-    <Compile Include="..\Acd.Mcp\Pipe\Protocol.cs" Link="Pipe\Protocol.cs" />
-    <Compile Include="..\Acd.Mcp\ExecuteResult.cs" Link="ExecuteResult.cs" />
+    <!-- Host-agnostic kernel. Mcp.Kernel carries the pipe framing + result
+         envelope this bridge speaks with the in-process plugin; Mcp.Kernel.Bridge
+         carries the relaxed MCP JSON encoder both bridges must use. Deliberately
+         NOT Mcp.Kernel.Scripting — a bridge never compiles anything, and pulling
+         Roslyn in would bloat the committed plugins/acd-mcp/bin payload. -->
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel.Bridge\Mcp.Kernel.Bridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

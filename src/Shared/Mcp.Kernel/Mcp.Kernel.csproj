@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Host-agnostic wire contract shared by the AutoCAD and Revit halves:
+       the named-pipe JSON-RPC framing (Pipe/Protocol.cs) and the snippet
+       result envelope (ExecuteResult.cs).
+
+       DELIBERATELY ZERO PACKAGE REFERENCES. Every consumer takes this
+       assembly — the two in-process plugins (Acd.Mcp, Rvt.Mcp) AND the two
+       out-of-process bridges (Acd.Mcp.Bridge, Rvt.Mcp.Bridge). Anything
+       added here lands in an AutoCAD process, a Revit process, and both
+       committed plugins/*/bin folders. If a shared type needs Roslyn it
+       belongs in Mcp.Kernel.Scripting; if it needs the MCP SDK it belongs
+       in Mcp.Kernel.Bridge. Keep this one on System.Text.Json (in-box) only. -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Mcp.Kernel</AssemblyName>
+    <RootNamespace>Mcp.Kernel</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- net8.0, NOT net8.0-windows: the two bridges are plain net8.0 console
+         apps and could not reference a windows-flavoured library. Nothing here
+         touches a Windows API. Same pattern as Acd.Mcp.Batch/Contracts. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+</Project>

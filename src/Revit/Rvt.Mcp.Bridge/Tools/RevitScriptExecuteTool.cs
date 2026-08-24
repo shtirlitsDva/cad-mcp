@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using Acd.Mcp;
 using ModelContextProtocol.Server;
+using Mcp.Kernel;
 
 namespace Rvt.Mcp.Bridge.Tools
 {

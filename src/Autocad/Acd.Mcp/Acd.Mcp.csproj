@@ -61,6 +61,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Host-agnostic kernel, shared verbatim with the Revit plugin: the pipe
+         wire contract (Mcp.Kernel) and the Roslyn plumbing (Mcp.Kernel.Scripting).
+         These used to live inside this project and were pulled into Rvt.Mcp by
+         <Compile Include="..\..\Autocad\..."> links; they are now one assembly
+         each, resolved by the isolated ALC the same way Acd.Mcp.Batch is. -->
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel.Scripting\Mcp.Kernel.Scripting.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- AutoCAD-free runtime. Plugin provides the AutoCAD-bound host and
          session; runtime owns the loop, Outcome union, step DSL, history. -->
     <ProjectReference Include="..\Acd.Mcp.Batch\Acd.Mcp.Batch.csproj" />

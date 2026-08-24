@@ -10,6 +10,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Document = Autodesk.AutoCAD.ApplicationServices.Document;
+using Mcp.Kernel;
+using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Script
 {

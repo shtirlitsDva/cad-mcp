@@ -1,9 +1,10 @@
 using System.Text.Json;
-using Acd.Mcp.Bridge;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Rvt.Mcp.Bridge;
+using Mcp.Kernel.Bridge;
+using Mcp.Kernel.Pipe;
 
 int? explicitPid = ParseArgValue(args, "--pid");
 
@@ -22,7 +23,7 @@ if (GetArgString(args, "--selftest") is string code)
 {
     var client = new RevitClient(explicitPid);
     var result = await client.ExecuteAsync(code, timeoutMs: 120_000);
-    Console.WriteLine(JsonSerializer.Serialize(result, Acd.Mcp.Pipe.FrameIO.JsonOptions));
+    Console.WriteLine(JsonSerializer.Serialize(result, FrameIO.JsonOptions));
     return result.Success ? 0 : 1;
 }
 

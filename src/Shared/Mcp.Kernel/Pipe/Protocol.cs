@@ -3,14 +3,15 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Acd.Mcp.Pipe
+namespace Mcp.Kernel.Pipe
 {
     // JSON-RPC 2.0 over a named pipe with length-prefixed frames:
     //   [4-byte big-endian length][UTF-8 JSON payload]
     // Length prefix avoids escaping arbitrary newlines in user code.
     //
-    // This file is intentionally AutoCAD-free so it can be shared with the
-    // out-of-process bridge via a linked compile item.
+    // Host-agnostic by construction: both in-process plugins (Acd.Mcp inside
+    // AutoCAD, Rvt.Mcp inside Revit) and both out-of-process bridges reference
+    // this assembly. Nothing CAD-specific may enter this file.
 
     public sealed class JsonRpcRequest
     {

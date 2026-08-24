@@ -5,8 +5,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Acd.Mcp.Batch;
-using Acd.Mcp.Pipe;
 using Acd.Mcp.Ui;
+using Mcp.Kernel.Pipe;
+using Acd.Mcp.Pipe;
 
 namespace Acd.Mcp.Batch.Runtime
 {

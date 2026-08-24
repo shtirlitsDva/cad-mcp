@@ -13,7 +13,7 @@ namespace Autodesk.Revit.DB.Fakes
     }
 }
 
-namespace Rvt.Mcp.Tests
+namespace Rvt.Mcp.Tests.RequiresRevit
 {
     public class RvtJsonTests
     {

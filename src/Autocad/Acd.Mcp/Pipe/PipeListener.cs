@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text.Json;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Pipe
 {

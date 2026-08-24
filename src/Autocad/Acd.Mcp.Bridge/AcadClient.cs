@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using System.Text.Json;
-using Acd.Mcp.Pipe;
+using Mcp.Kernel;
+using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Bridge
 {

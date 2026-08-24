@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
-using Acd.Mcp;
-using Acd.Mcp.Scripting;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.CodeAnalysis.Scripting.Hosting;
+using Mcp.Kernel;
+using Mcp.Kernel.Scripting;
 
 namespace Rvt.Mcp
 {

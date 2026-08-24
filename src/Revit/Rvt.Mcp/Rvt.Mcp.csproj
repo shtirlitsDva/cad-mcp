@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -6,8 +6,6 @@
     <AssemblyName>Rvt.Mcp</AssemblyName>
     <UseWPF>false</UseWPF>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
-    <!-- RoslynReferences (linked) reads in-memory PE blobs via pointers. -->
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Class libraries do NOT copy NuGet assets to output by default —
          without this the Roslyn DLLs never reach the deploy folder and the
          first script call dies with FileNotFoundException inside Revit. -->
@@ -54,13 +52,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- AutoCAD-free pieces shared with the AutoCAD plugin via linked
-         compile — wire types and Roslyn plumbing are host-agnostic. -->
-    <Compile Include="..\..\Autocad\Acd.Mcp\Pipe\Protocol.cs" Link="Shared\Protocol.cs" />
-    <Compile Include="..\..\Autocad\Acd.Mcp\ExecuteResult.cs" Link="Shared\ExecuteResult.cs" />
-    <Compile Include="..\..\Autocad\Acd.Mcp\Scripting\TrailingExpressionRewriter.cs" Link="Shared\TrailingExpressionRewriter.cs" />
-    <Compile Include="..\..\Autocad\Acd.Mcp\Scripting\RoslynReferences.cs" Link="Shared\RoslynReferences.cs" />
-    <Compile Include="..\..\Autocad\Acd.Mcp\Scripting\ConsoleCapture.cs" Link="Shared\ConsoleCapture.cs" />
+    <!-- Host-agnostic kernel: the wire contract and the Roslyn plumbing.
+         Both land in this project's output folder and are resolved by
+         RvtMcpLoadContext's AssemblyDependencyResolver (deps.json) with a
+         side-by-side fallback — same path Roslyn's own DLLs take. -->
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel.Scripting\Mcp.Kernel.Scripting.csproj" />
   </ItemGroup>
 
 </Project>

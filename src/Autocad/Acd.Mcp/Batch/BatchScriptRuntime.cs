@@ -1,9 +1,10 @@
 using System;
 using System.Linq;
 using Acd.Mcp.Batch;
-using Acd.Mcp.Scripting;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Scripting;
+using Mcp.Kernel.Scripting;
+using Acd.Mcp.Scripting;
 
 namespace Acd.Mcp.Batch.Runtime
 {

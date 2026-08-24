@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis;
 
-namespace Acd.Mcp.Scripting
+namespace Mcp.Kernel.Scripting
 {
     // Builds the MetadataReference list that any Roslyn CSharpScript session
     // inside the plugin needs. Two paths per assembly:
@@ -17,7 +17,8 @@ namespace Acd.Mcp.Scripting
     // and binding silently breaks for any identifier reaching into the plugin
     // assembly's namespace.
     //
-    // Shared by ScriptSession (REPL) and DtoLoader (DTO file compilation).
+    // Consumed by Acd.Mcp's ScriptSession + DtoLoader and Rvt.Mcp's
+    // RvtScriptSession.
     public static class RoslynReferences
     {
         public static List<MetadataReference> Build(params Type[] alsoIncludeAssembliesOf)

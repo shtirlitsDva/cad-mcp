@@ -1,11 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Acd.Mcp
+namespace Mcp.Kernel
 {
-    // Result of executing a snippet. Lives at the project root because it's the
-    // wire currency — both transport (Pipe) and execution (Scripting) reference it,
-    // and the out-of-process bridge links this file directly.
+    // Result of executing a snippet. Lives in the shared kernel because it's the
+    // wire currency — every half of both products references it: the in-process
+    // plugins produce it, the out-of-process bridges consume it.
     //
     // ReturnValueRepr is the human-display string (.ToString() of the value).
     // ReturnValueJson is the DTO-projected JSON when the value is non-null.

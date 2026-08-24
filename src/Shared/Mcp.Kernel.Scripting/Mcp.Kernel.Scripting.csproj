@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Host-agnostic Roslyn plumbing shared by the two IN-PROCESS plugins
+       (Acd.Mcp inside AutoCAD, Rvt.Mcp inside Revit): the trailing-expression
+       rewriter, the MetadataReference builder, and per-call Console capture.
+
+       Separate from Mcp.Kernel because of its Roslyn dependency. The two
+       bridges need Mcp.Kernel's wire types but must NOT drag
+       Microsoft.CodeAnalysis into plugins/*/bin — those binaries are
+       committed to the repo and shipped in the release zip. Merging this
+       into Mcp.Kernel would add ~15 MB of Roslyn to both bridge payloads
+       for code they never call. -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Mcp.Kernel.Scripting</AssemblyName>
+    <RootNamespace>Mcp.Kernel.Scripting</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- net8.0, NOT net8.0-windows: the two bridges are plain net8.0 console
+         apps and could not reference a windows-flavoured library. Nothing here
+         touches a Windows API. Same pattern as Acd.Mcp.Batch/Contracts. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- RoslynReferences reads in-memory PE blobs via
+         AssemblyExtensions.TryGetRawMetadata (byte*). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.0" />
+  </ItemGroup>
+
+</Project>

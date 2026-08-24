@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for the host-agnostic kernel. Deliberately references ONLY the
+       shared projects — no Acd.*, no Rvt.*. That is the enforcement mechanism
+       for the kernel's central claim: if a change to Mcp.Kernel or
+       Mcp.Kernel.Scripting cannot be tested without dragging in AutoCAD or
+       Revit, the code does not belong in the kernel. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Mcp.Kernel.Tests</RootNamespace>
+    <AssemblyName>Mcp.Kernel.Tests</AssemblyName>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+    <ProjectReference Include="..\..\..\src\Shared\Mcp.Kernel.Scripting\Mcp.Kernel.Scripting.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

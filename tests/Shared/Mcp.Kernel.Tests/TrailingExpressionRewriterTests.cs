@@ -1,7 +1,7 @@
 using Xunit;
-using Acd.Mcp.Scripting;
+using Mcp.Kernel.Scripting;
 
-namespace Acd.Mcp.Tests;
+namespace Mcp.Kernel.Tests;
 
 // Pins the auto-return semantics documented in the /acd-mcp:script skill's
 // <trailing-expression-return-and-auto-return-gotchas> section. The cases

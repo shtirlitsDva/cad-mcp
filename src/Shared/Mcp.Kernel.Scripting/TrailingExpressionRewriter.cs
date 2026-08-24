@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Acd.Mcp.Scripting
+namespace Mcp.Kernel.Scripting
 {
     // REPL ergonomic: if the user's last statement is a bare value-shaped
     // expression ending with `;` (e.g. `x * 10;`, `42;`, `new List<int> { 1, 2 };`),
@@ -13,10 +13,10 @@ namespace Acd.Mcp.Scripting
     // (`new T(...);`), since "construct and discard" is almost never the
     // intent in a REPL — see <auto-return-rules> below.
     //
-    // Pure Roslyn syntax work; no AutoCAD dependency. Lives in its own
-    // file so the test project can Compile-Include it without dragging
-    // the entire ScriptSession surface (which DOES need AutoCAD).
-    internal static class TrailingExpressionRewriter
+    // Pure Roslyn syntax work; no CAD-host dependency. Lives in the shared
+    // kernel so both host sessions and the test project get it without
+    // dragging in a ScriptSession surface bound to AutoCAD or Revit.
+    public static class TrailingExpressionRewriter
     {
         public static string AutoReturnTrailingExpression(string code)
         {

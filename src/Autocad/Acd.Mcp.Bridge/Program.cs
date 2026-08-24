@@ -1,7 +1,8 @@
-using Acd.Mcp.Bridge;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Mcp.Kernel.Bridge;
+using Acd.Mcp.Bridge;
 
 int? explicitPid = ParseExplicitPid(args);
 

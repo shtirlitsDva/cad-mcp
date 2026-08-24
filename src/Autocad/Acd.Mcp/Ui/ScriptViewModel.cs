@@ -2,11 +2,12 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
 using Acd.Mcp.Batch;
-using Acd.Mcp.Pipe;
-using Acd.Mcp.Scripting;
 using Acd.Mcp.Ui.ManageScripts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Mcp.Kernel;
+using Acd.Mcp.Pipe;
+using Acd.Mcp.Scripting;
 
 namespace Acd.Mcp.Ui
 {

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -26,12 +26,12 @@
 
 
   <ItemGroup>
-    <!-- Wire-domain types shared with both plugins via linked compile. -->
-    <Compile Include="..\..\Autocad\Acd.Mcp\Pipe\Protocol.cs" Link="Pipe\Protocol.cs" />
-    <Compile Include="..\..\Autocad\Acd.Mcp\ExecuteResult.cs" Link="ExecuteResult.cs" />
+    <!-- Host-agnostic wire contract, shared with the in-process plugins.
+         Deliberately NOT Mcp.Kernel.Scripting (see the AutoCAD bridge). -->
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
     <!-- Shared agent-facing MCP JSON policy (relaxed encoder) — one source of
          truth for both bridges so the escaping fix lives in a single place. -->
-    <Compile Include="..\..\Autocad\Acd.Mcp.Bridge\McpServerJson.cs" Link="McpServerJson.cs" />
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel.Bridge\Mcp.Kernel.Bridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

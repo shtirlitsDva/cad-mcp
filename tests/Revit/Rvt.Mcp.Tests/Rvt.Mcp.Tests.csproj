@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The headless half of the Revit suite: discovery / transport / pipe
+       framing. No Autodesk.Revit type is constructed here, so no RevitAPI
+       reference and no Revit install is needed — this project builds and runs
+       on CI like every AutoCAD test project does.
+
+       Tests that must construct real Revit types live in the sibling
+       Rvt.Mcp.Tests.RequiresRevit project, which is excluded from CI.slnf.
+       Before adding a Revit reference here, check whether the test really
+       needs one — the whole point of this split is that "the Revit tests
+       can't run on CI" stopped being true for most of them. -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Rvt.Mcp.Tests</RootNamespace>
+    <AssemblyName>Rvt.Mcp.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SUT files, link-included (repo convention) to keep RevitAPIUI and
+         Roslyn out of the test build. -->
+    <Compile Include="..\..\..\src\Revit\Rvt.Mcp.Bridge\RevitTransport.cs" Link="Sut\RevitTransport.cs" />
+    <Compile Include="..\..\..\src\Revit\Rvt.Mcp.Bridge\RevitDiscovery.cs" Link="Sut\RevitDiscovery.cs" />
+    <Compile Include="..\..\..\src\Revit\Rvt.Mcp.Bridge\RevitPipe.cs" Link="Sut\RevitPipe.cs" />
+    <ProjectReference Include="..\..\..\src\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

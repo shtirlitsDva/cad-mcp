@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Acd.Mcp.Ui;
+using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Pipe
 {

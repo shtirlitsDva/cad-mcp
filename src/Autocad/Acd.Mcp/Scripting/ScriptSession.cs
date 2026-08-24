@@ -9,6 +9,8 @@ using Acd.Mcp.Api;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
+using Mcp.Kernel;
+using Mcp.Kernel.Scripting;
 
 namespace Acd.Mcp.Scripting
 {

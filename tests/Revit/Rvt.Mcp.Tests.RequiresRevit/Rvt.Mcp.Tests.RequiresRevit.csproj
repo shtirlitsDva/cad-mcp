@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Revit tests that CANNOT run headless, isolated here so the rest of
+       the Revit suite can.
+
+       RvtJson's typed branches project real Autodesk.Revit.DB.ElementId /
+       XYZ values, so the tests must construct those types for real. The
+       Nice3point NuGet packages are compile-time reference assemblies; the
+       actual RevitAPI.dll is managed but P/Invokes into NATIVE Revit DLLs on
+       load (see TestNativeSetup), which no NuGet package can supply. A real
+       Revit 2025 install is therefore a hard runtime requirement, and this
+       project is deliberately EXCLUDED from CI.slnf.
+
+       Everything that does NOT need Revit lives in the sibling
+       Rvt.Mcp.Tests project and DOES run on CI. Keep that split honest —
+       if a new test can run headless, it belongs next door. -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Rvt.Mcp.Tests.RequiresRevit</RootNamespace>
+    <AssemblyName>Rvt.Mcp.Tests.RequiresRevit</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Real install assembly, copied local. Override the location with the
+         RevitPath2025 MSBuild property (build) / RVT_MCP_TEST_REVIT_DIR
+         environment variable (native loader, see TestNativeSetup). -->
+    <Reference Include="RevitAPI">
+      <HintPath Condition="'$(RevitPath2025)' == ''">C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(RevitPath2025)' != ''">$(RevitPath2025)\RevitAPI.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\src\Revit\Rvt.Mcp\RvtJson.cs" Link="Sut\RvtJson.cs" />
+  </ItemGroup>
+
+</Project>

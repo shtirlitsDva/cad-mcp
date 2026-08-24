@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
+using Mcp.Kernel;
 
 namespace Acd.Mcp.Bridge.Tools
 {

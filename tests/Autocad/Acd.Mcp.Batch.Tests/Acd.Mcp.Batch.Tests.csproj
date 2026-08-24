@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
@@ -17,7 +17,7 @@
     handle on Test→Live, lease-probe failure, cancellation).
   -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Autocad\Acd.Mcp.Batch\Acd.Mcp.Batch.csproj" />
+    <ProjectReference Include="..\..\..\src\Autocad\Acd.Mcp.Batch\Acd.Mcp.Batch.csproj" />
   </ItemGroup>
 
   <ItemGroup>

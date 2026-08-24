@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Serialization
 {

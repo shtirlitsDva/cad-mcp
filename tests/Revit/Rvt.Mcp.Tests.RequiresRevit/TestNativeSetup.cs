@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Rvt.Mcp.Tests
+namespace Rvt.Mcp.Tests.RequiresRevit
 {
     // RevitAPI.dll is managed but pulls native Revit DLLs on load. Point the
     // loader at the install dir BEFORE any test method referencing Revit

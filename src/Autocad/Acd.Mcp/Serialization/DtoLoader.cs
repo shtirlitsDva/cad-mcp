@@ -2,6 +2,7 @@ using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
+using Mcp.Kernel.Scripting;
 using Acd.Mcp.Scripting;
 
 namespace Acd.Mcp.Serialization

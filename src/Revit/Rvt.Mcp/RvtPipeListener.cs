@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text.Json;
-using Acd.Mcp.Pipe;
+using Mcp.Kernel.Pipe;
 
 namespace Rvt.Mcp
 {
     // Transport: named pipe `rvt-mcp-{pid}`, JSON-RPC over length-prefixed
-    // frames (Acd.Mcp.Pipe.FrameIO, linked). Mirrors Acd.Mcp's PipeListener
+    // frames (Mcp.Kernel.Pipe.FrameIO). Mirrors Acd.Mcp's PipeListener
     // minus the AutoCAD-side extras (extra method handlers, execution log) —
     // the V1 surface is ping / reset / execute.
     public sealed class RvtPipeListener : IDisposable
