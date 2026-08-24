@@ -52,43 +52,48 @@ Build with `dotnet build Acd.Mcp.csproj -c Release -p:Platform=x64`. [DevReload]
 
 ## Install
 
-The MCP-client side (register `Bridge.exe`) and the AutoCAD side (load the plugin) are separate steps.
+acd-mcp has two halves that install separately:
 
-### Claude Code
+| Half | What it is | Where it comes from |
+|---|---|---|
+| **AutoCAD plugin** | `Acd.Mcp.dll` + deps, autoloaded by AutoCAD | **the release zip** |
+| **MCP bridge** | `Acd.Mcp.Bridge.exe`, launched by your AI client | the plugin marketplace, *or* the same zip |
+
+**The AutoCAD half ships only in the release zip.** The marketplace serves this repo's `plugins/acd-mcp/` folder, which carries the bridge but not the AutoCAD assemblies — those are build output. So every route below starts with the zip.
+
+### Step 1 — the AutoCAD plugin (always)
+
+Download `acd-mcp-plugin-v<X.Y.Z>.zip` from [Releases](https://github.com/shtirlitsDva/cad-mcp/releases) and extract it somewhere permanent. Then, **with AutoCAD closed**:
+
+```powershell
+pwsh install-hooks\Install-Bundle.ps1
+```
+
+That deploys `ACD-MCP.bundle` into `%APPDATA%\Autodesk\ApplicationPlugins\`, which AutoCAD autoloads at startup. Re-run it on every upgrade — it refuses to downgrade unless you pass `-Force`.
+
+### Step 2 — the MCP bridge
+
+Pick **one** route. Doing two of them double-registers the server.
+
+**Claude Code** — also installs the `/acd-mcp:start|script|batch|add-dto` skills:
 
 ```
 /plugin marketplace add https://github.com/shtirlitsDva/cad-mcp
 /plugin install acd-mcp@cad-mcp
 ```
 
-Registers `Bridge.exe` and adds skills `/acd-mcp:start|script|batch|add-dto`. Then deploy the bundle:
+**Codex app** — also installs the skills. Settings → Plugins → Add marketplace → `shtirlitsDva/cad-mcp` → install **acd-mcp**.
+
+**Copilot / Claude Desktop, or Codex without the marketplace** — from the same extracted zip:
 
 ```powershell
-pwsh ~/.claude/plugins/cache/acd-mcp@cad-mcp/*/install-hooks/Install-Bundle.ps1
+pwsh install-hooks\Install-Mcp.ps1
 ```
 
-Don't run `Install-Mcp.ps1` here — it double-registers.
+It auto-detects installed clients and writes `~/.codex/config.toml`, `%APPDATA%\Code\User\mcp.json`, or `%APPDATA%\Claude\claude_desktop_config.json`. Flags: `-Clients codex,copilot`, `-WhatIf`. Restart the client afterwards. This route gives you the tools but not the skills — those come only through a plugin install.
 
-### Codex app
+Keep the extracted folder where it is: `Install-Mcp.ps1` registers an absolute path into it, so moving or deleting it breaks the server.
 
-Settings → Plugins → Add marketplace → `shtirlitsDva/cad-mcp` → install **acd-mcp**. Then:
-
-```powershell
-pwsh "$env:USERPROFILE\.codex\plugins\cache\acd-mcp\cad-mcp\*\install-hooks\Install-Bundle.ps1"
-```
-
-Don't run `Install-Mcp.ps1` here — it double-registers.
-
-### Copilot / Claude Desktop
-
-Download a [release zip](https://github.com/shtirlitsDva/cad-mcp/releases), extract, then:
-
-```powershell
-pwsh install-hooks\Install-Bundle.ps1   # deploy the AutoCAD bundle
-pwsh install-hooks\Install-Mcp.ps1      # register with detected clients
-```
-
-`Install-Mcp.ps1` writes `~/.codex/config.toml`, `%APPDATA%\Code\User\mcp.json`, or `%APPDATA%\Claude\claude_desktop_config.json`. Flags: `-Clients codex,copilot`, `-WhatIf`. Restart the client afterward.
 
 ### Inside AutoCAD
 

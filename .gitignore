@@ -97,3 +97,16 @@ Deploy/
 
 # Background-agent worktrees (managed by Claude Code harness, not source)
 .claude/worktrees/
+
+# ── Autodesk bundle payloads ────────────────────────────────────────────────
+# Contents/ is populated by scripts/Build-Release.ps1 from the host project's
+# build output and belongs in the release zip, never in git. The .gitkeep and
+# the Revit .addin manifest are the only tracked files in there.
+#
+# This rule is not theoretical: 11 MB of Acd.Mcp.dll + Roslyn once reached a
+# commit because the folder was writable, untracked, and unignored, even
+# though its own .gitkeep said "the actual binaries are never committed".
+autocad-bundle/ACD-MCP.bundle/Contents/*
+!autocad-bundle/ACD-MCP.bundle/Contents/.gitkeep
+revit-bundle/RVT-MCP.bundle/Contents/*
+!revit-bundle/RVT-MCP.bundle/Contents/Rvt.Mcp.addin

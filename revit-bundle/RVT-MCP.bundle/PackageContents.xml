@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Autodesk ApplicationPlugin bundle manifest for RVT-MCP.
+
+  Revit supports the same %APPDATA%\Autodesk\ApplicationPlugins\ bundle
+  mechanism as AutoCAD, with one structural difference that matters:
+
+    AutoCAD  ComponentEntry ModuleName -> a .DLL
+    Revit    ComponentEntry ModuleName -> a .ADDIN manifest
+
+  So the bundle does not replace the .addin file, it WRAPS it. The .addin
+  lives in Contents/ next to the assemblies, and its <Assembly> path is
+  relative to the .addin's own folder. Shape verified against Autodesk's
+  own revit-ifc bundle.
+
+  Using a bundle rather than writing into %APPDATA%\Autodesk\Revit\Addins\<year>\
+  buys three things: one install mechanism shared with acd-mcp, Revit-version
+  targeting declared here instead of chosen by an installer flag, and a single
+  folder to delete on uninstall.
+
+  AppVersion is REWRITTEN AT BUILD TIME by scripts/Build-Release.ps1 from
+  plugins/rvt-mcp/.claude-plugin/plugin.json. Do not hand-edit it and do not
+  rely on the value committed here — the AutoCAD bundle spent every release
+  from v0.5.0 to v2.0.2 with a stale hand-maintained stamp, which made the
+  installer's upgrade check silently skip every upgrade.
+
+  SeriesMax is R2026: Revit 2025 and 2026 both host .NET 8, and the loader
+  is version-agnostic. Only 2025 is actually tested. To add a series that
+  needs different binaries, give it its own Contents/<year>/ folder and its
+  own ComponentEntry, the way revit-ifc does.
+-->
+<ApplicationPackage SchemaVersion="1.0"
+                    AutodeskProduct="Revit"
+                    ProductType="Application"
+                    Name="RVT-MCP"
+                    AppVersion="0.0.0"
+                    ProductCode="{9E3A6C51-7D42-4F8B-B1C6-5A2E8F0D4B77}"
+                    UpgradeCode="{9E3A6C51-7D42-4F8B-B1C6-5A2E8F0D4B77}"
+                    Author="Norsyn"
+                    Description="Live C# script session inside Revit, exposed as an MCP server."
+                    HelpFile="">
+
+  <CompanyDetails Name="Norsyn"
+                  Url="https://github.com/shtirlitsDva/cad-mcp"
+                  Email=""/>
+
+  <Components Description="x64 Revit 2025+">
+    <RuntimeRequirements OS="Win64"
+                         Platform="Revit"
+                         SeriesMin="R2025"
+                         SeriesMax="R2026"/>
+
+    <ComponentEntry AppName="RVT-MCP"
+                    ModuleName="./Contents/Rvt.Mcp.addin"
+                    AppDescription="RVT-MCP: C# script session in Revit API context"/>
+  </Components>
+</ApplicationPackage>

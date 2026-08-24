@@ -100,6 +100,10 @@ $Definitions = @{
         # In-process plugin whose build output is the host payload.
         HostProj     = 'src/Autocad/Acd.Mcp/Acd.Mcp.csproj'
         HostOutDir   = 'src/Autocad/Acd.Mcp/bin'
+        # Autodesk ApplicationPlugin bundle: source folder, and the name it
+        # takes inside the staged zip.
+        BundleSrc    = 'autocad-bundle/ACD-MCP.bundle'
+        BundleDir    = 'autocad-bundle'
     }
     rvt = @{
         PluginName   = 'rvt-mcp'
@@ -111,6 +115,12 @@ $Definitions = @{
         # produces the complete add-in folder (loader + engine + Roslyn).
         HostProj     = 'src/Revit/Rvt.Mcp.Loader/Rvt.Mcp.Loader.csproj'
         HostOutDir   = 'src/Revit/Rvt.Mcp.Loader/bin'
+        # Revit uses the SAME bundle mechanism as AutoCAD. The difference is
+        # that its ComponentEntry ModuleName points at a .addin manifest
+        # rather than a .dll, so Contents/ ships a committed Rvt.Mcp.addin
+        # alongside the assemblies.
+        BundleSrc    = 'revit-bundle/RVT-MCP.bundle'
+        BundleDir    = 'revit-bundle'
     }
 }
 
@@ -183,34 +193,46 @@ foreach ($key in $products) {
         Fail "Host build output not found at $hostBuildOut. Did dotnet build succeed?"
     }
 
-    if ($key -eq 'acd') {
-        # AutoCAD Autoloader bundle: manifest + Contents/ populated from the
-        # plugin's build output (Acd.Mcp.dll + the transitive deps MSBuild
-        # already arranged).
-        $bundleSrc = Join-Path $repoRoot 'autocad-bundle/ACD-MCP.bundle'
-        $bundleDst = Join-Path $pluginStage 'autocad-bundle/ACD-MCP.bundle'
-        New-Item -ItemType Directory -Path $bundleDst -Force | Out-Null
-        Copy-Item (Join-Path $bundleSrc 'PackageContents.xml') $bundleDst
+    # Both products ship as an Autodesk ApplicationPlugin bundle: manifest at
+    # the root, assemblies in Contents/. One staging path, one installer shape,
+    # one thing for a user to delete.
+    $bundleSrc = Join-Path $repoRoot $def.BundleSrc
+    $bundleDst = Join-Path $pluginStage "$($def.BundleDir)/$(Split-Path $def.BundleSrc -Leaf)"
+    New-Item -ItemType Directory -Path $bundleDst -Force | Out-Null
 
-        $contentsDst = Join-Path $bundleDst 'Contents'
-        New-Item -ItemType Directory -Path $contentsDst -Force | Out-Null
-        Get-ChildItem $hostBuildOut -File |
-            Where-Object { $_.Extension -in '.dll', '.pdb', '.json' } |
-            Copy-Item -Destination $contentsDst -Force
-        Write-Ok "AutoCAD bundle staged ($((Get-ChildItem $contentsDst).Count) files)"
+    # Stamp AppVersion from plugin.json rather than trusting the committed
+    # value. Install-Bundle.ps1 refuses to overwrite when the installed
+    # AppVersion is >= the source's, so a stale stamp makes every upgrade
+    # silently no-op — which is exactly what happened to the AutoCAD bundle
+    # for every release from v0.5.0 to v2.0.2. A comment asking a human to
+    # keep two files in lockstep is not a mechanism; this is.
+    $pkgXml = Get-Content (Join-Path $bundleSrc 'PackageContents.xml') -Raw
+    $stamped = [regex]::Replace($pkgXml, 'AppVersion="[^"]*"', "AppVersion=`"$ver`"", 1)
+    if ($stamped -eq $pkgXml -and $pkgXml -notmatch [regex]::Escape("AppVersion=`"$ver`"")) {
+        Fail "Could not stamp AppVersion in $($def.BundleSrc)/PackageContents.xml"
     }
-    else {
-        # Revit add-in payload: the loader's whole output folder. The .addin
-        # manifest is written at install time by install-hooks/Install-Addin.ps1,
-        # which needs the target Revit year — it cannot be baked in here.
-        $addinDst = Join-Path $pluginStage 'revit-addin'
-        New-Item -ItemType Directory -Path $addinDst -Force | Out-Null
-        Copy-Item (Join-Path $hostBuildOut '*') $addinDst -Recurse -Force
-        if (-not (Test-Path (Join-Path $addinDst 'Rvt.Mcp.Loader.dll'))) {
-            Fail "Rvt.Mcp.Loader.dll missing from staged add-in payload."
-        }
-        Write-Ok "Revit add-in staged ($((Get-ChildItem $addinDst -File).Count) files)"
+    Set-Content (Join-Path $bundleDst 'PackageContents.xml') -Value $stamped -Encoding utf8
+    Write-Ok "PackageContents.xml stamped AppVersion=$ver"
+
+    # Everything else in the bundle source is content (Revit ships a committed
+    # Contents/Rvt.Mcp.addin; AutoCAD ships only a .gitkeep placeholder).
+    $contentsDst = Join-Path $bundleDst 'Contents'
+    New-Item -ItemType Directory -Path $contentsDst -Force | Out-Null
+    Get-ChildItem (Join-Path $bundleSrc 'Contents') -File |
+        Where-Object { $_.Name -ne '.gitkeep' } |
+        Copy-Item -Destination $contentsDst -Force
+
+    # Then the build output: the in-process assemblies and their deps, which
+    # MSBuild has already arranged in the host project's bin folder.
+    Get-ChildItem $hostBuildOut -File |
+        Where-Object { $_.Extension -in '.dll', '.pdb', '.json' } |
+        Copy-Item -Destination $contentsDst -Force
+
+    $sentinel = if ($key -eq 'acd') { 'Acd.Mcp.dll' } else { 'Rvt.Mcp.Loader.dll' }
+    if (-not (Test-Path (Join-Path $contentsDst $sentinel))) {
+        Fail "$sentinel missing from staged bundle Contents/."
     }
+    Write-Ok "Bundle staged ($((Get-ChildItem $contentsDst -File).Count) files in Contents/)"
 
     # ─── zip ────────────────────────────────────────────────────────────────
     Write-Step "Zipping to $zipPath"
@@ -277,6 +299,6 @@ Write-Host "               /plugin install rvt-mcp@cad-mcp      # Revit"
 Write-Host "  Others:      Download the product zip, extract, then:"
 Write-Host "                 acd-mcp: pwsh install-hooks\Install-Bundle.ps1   # AutoCAD bundle"
 Write-Host "                          pwsh install-hooks\Install-Mcp.ps1      # Codex/Copilot/Claude Desktop"
-Write-Host "                 rvt-mcp: pwsh install-hooks\Install-Addin.ps1    # Revit add-in"
+Write-Host "                 rvt-mcp: pwsh install-hooks\Install-Bundle.ps1   # Revit bundle"
 Write-Host "                          (non-Claude clients: point them at bin\Rvt.Mcp.Bridge.exe)"
 Write-Host ''

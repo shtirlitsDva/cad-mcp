@@ -35,48 +35,65 @@ The loader pulls the engine in by `ProjectReference`, so one build produces the 
 
 ## Install
 
-The MCP-client side (register `Bridge.exe`) and the Revit side (deploy the add-in) are separate steps. The two halves meet on the `rvt-mcp-{pid}` pipe.
+rvt-mcp has two halves that install separately:
 
-### Claude Code
+| Half | What it is | Where it comes from |
+|---|---|---|
+| **Revit add-in** | `Rvt.Mcp.Loader.dll` + engine + Roslyn, autoloaded by Revit | **the release zip** |
+| **MCP bridge** | `Rvt.Mcp.Bridge.exe`, launched by your AI client | the plugin marketplace, *or* the same zip |
+
+**The Revit half ships only in the release zip.** The marketplace serves this repo's `plugins/rvt-mcp/` folder, which carries the bridge but not the Revit assemblies — those are build output. The two halves meet on the `rvt-mcp-{pid}` named pipe.
+
+### Step 1 — the Revit add-in (always)
+
+Download `rvt-mcp-plugin-v<X.Y.Z>.zip` from [Releases](https://github.com/shtirlitsDva/cad-mcp/releases) and extract it somewhere permanent. Then, **with Revit closed**:
+
+```powershell
+pwsh install-hooks\Install-Bundle.ps1
+```
+
+That deploys `RVT-MCP.bundle` into `%APPDATA%\Autodesk\ApplicationPlugins\` — the same mechanism AutoCAD uses. Revit supports it too, with one structural difference worth knowing: where AutoCAD's `PackageContents.xml` points `ComponentEntry ModuleName` at a **DLL**, Revit's points it at an **`.addin` manifest**. So the bundle does not replace the `.addin` file, it *wraps* it — `Contents\Rvt.Mcp.addin` ships inside the bundle.
+
+Consequences: there is no `-RevitYear` to choose (the bundle's `RuntimeRequirements` declares `R2025`–`R2026`), nothing is written into `%APPDATA%\Autodesk\Revit\Addins\<year>\`, and uninstalling is one folder deletion.
+
+Re-run on every upgrade; it refuses to downgrade unless you pass `-Force`.
+
+### Step 2 — the MCP bridge
+
+Pick **one** route. Doing two of them double-registers the server.
+
+**Claude Code:**
 
 ```
 /plugin marketplace add https://github.com/shtirlitsDva/cad-mcp
 /plugin install rvt-mcp@cad-mcp
 ```
 
-That registers `Bridge.exe`. Then deploy the Revit add-in:
+**Codex app:** Settings → Plugins → Add marketplace → `shtirlitsDva/cad-mcp` → install **rvt-mcp**.
 
-```powershell
-pwsh ~/.claude/plugins/cache/rvt-mcp@cad-mcp/*/install-hooks/Install-Addin.ps1
-```
-
-### From a release zip
-
-Download a [release zip](https://github.com/shtirlitsDva/cad-mcp/releases) (`rvt-mcp-plugin-v<X.Y.Z>.zip`), extract, then:
-
-```powershell
-pwsh install-hooks\Install-Addin.ps1                 # Revit 2025
-pwsh install-hooks\Install-Addin.ps1 -RevitYear 2026 # other versions
-```
-
-That installs to `%APPDATA%\Autodesk\Revit\Addins\<year>\Rvt.Mcp\` plus a `Rvt.Mcp.addin` manifest. Point non-Claude MCP clients at `bin\Rvt.Mcp.Bridge.exe` in the extracted folder.
+**Anything else:** point the client at `bin\Rvt.Mcp.Bridge.exe` in the extracted zip. rvt-mcp has no `Install-Mcp.ps1` of its own yet — acd-mcp's multi-client installer has not been generalised across products.
 
 ### From a clone (developers)
 
+`scripts\Deploy-RevitAddin.ps1` builds from source and registers into `%APPDATA%\Autodesk\Revit\Addins\<year>\` instead of deploying a bundle — the faster loop while developing:
+
 ```powershell
-pwsh scripts\Deploy-RevitAddin.ps1                   # build + install in one step
+pwsh scripts\Deploy-RevitAddin.ps1
 pwsh scripts\Deploy-RevitAddin.ps1 -RevitYear 2026
 ```
+
+Don't leave both installed. A per-user add-in registration and a bundle will each load their own copy of the engine, and both will try to open a pipe. `Install-Bundle.ps1` warns when it spots one.
 
 ### Uninstall
 
 ```powershell
-pwsh install-hooks\Uninstall-Addin.ps1     # or: pwsh scripts\Deploy-RevitAddin.ps1 -Remove
+pwsh install-hooks\Uninstall-Bundle.ps1          # remove the Revit bundle
+pwsh install-hooks\Uninstall-Bundle.ps1 -Purge   # also delete the log and session state
+pwsh scripts\Deploy-RevitAddin.ps1 -Remove       # remove a developer per-user install
 ```
 
-Claude Code: `/plugin uninstall rvt-mcp@cad-mcp`.
+Claude Code: `/plugin uninstall rvt-mcp@cad-mcp`. Restart Revit afterwards.
 
-Restart Revit after installing or removing.
 
 ## Build a release
 
@@ -150,7 +167,7 @@ Transport error codes (surfaced in `stderr`): `NO_REVIT_FOUND`, `PIPE_NOT_LISTEN
 | Multi-file batch | yes | no |
 | Custom DTO serialization | yes (user-authored `.csx`) | no (fixed projections) |
 | Per-call `pid` targeting | yes | no (`--pid` on the Bridge only) |
-| Load mechanism | `NETLOAD` / `.bundle` autoload | `.addin` manifest + private ALC loader |
+| Load mechanism | `.bundle` autoload (or `NETLOAD`) | `.bundle` wrapping an `.addin` + private ALC loader |
 
 ## License
 

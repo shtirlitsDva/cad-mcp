@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Revit add-in manifest, loaded via the enclosing RVT-MCP.bundle (see
+  ../PackageContents.xml). <Assembly> is relative to THIS file's folder, so
+  the loader sits beside it in Contents/.
+
+  Rvt.Mcp.Loader is deliberately a thin shim: it loads Rvt.Mcp.dll into a
+  private AssemblyLoadContext so this add-in's Roslyn 4.12 cannot collide
+  with a Roslyn another add-in already put in the default context (pyRevit
+  ships 4.11; that conflict killed the engine before the loader existed).
+
+  AddInId must stay stable across releases — Revit keys its enable/disable
+  state on it, so changing it silently re-enables an add-in a user turned off.
+-->
+<RevitAddIns>
+    <AddIn Type="Application">
+        <Name>Rvt.Mcp</Name>
+        <Assembly>Rvt.Mcp.Loader.dll</Assembly>
+        <FullClassName>Rvt.Mcp.Loader.LoaderApp</FullClassName>
+        <AddInId>f4ac6a14-27e4-442f-a254-300c83e2b55a</AddInId>
+        <VendorId>DVRL</VendorId>
+        <VendorDescription>Norsyn, https://github.com/shtirlitsDva/cad-mcp</VendorDescription>
+    </AddIn>
+</RevitAddIns>

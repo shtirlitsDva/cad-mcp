@@ -11,13 +11,24 @@ They are **independently versioned and independently released**. Install either 
 
 ## Install
 
-```
-/plugin marketplace add https://github.com/shtirlitsDva/cad-mcp
-/plugin install acd-mcp@cad-mcp     # AutoCAD / Civil 3D
-/plugin install rvt-mcp@cad-mcp     # Revit
-```
+Each product has two halves, and they install from different places:
 
-That registers the MCP bridge. Each product also needs its in-process half deployed into the host — see the product doc for that step, and for non-Claude clients (Codex, Copilot, Claude Desktop).
+1. **The in-process plugin** — the half that runs inside AutoCAD or Revit. Ships **only in the release zip**, as an Autodesk ApplicationPlugin bundle. Download the product's zip from [Releases](https://github.com/shtirlitsDva/cad-mcp/releases), extract it somewhere permanent, close the host, and run `pwsh install-hooks\Install-Bundle.ps1`. It deploys to `%APPDATA%\Autodesk\ApplicationPlugins\`, which both hosts autoload at startup.
+
+2. **The MCP bridge** — the half your AI client launches. Available from the marketplace:
+
+   ```
+   /plugin marketplace add https://github.com/shtirlitsDva/cad-mcp
+   /plugin install acd-mcp@cad-mcp     # AutoCAD / Civil 3D
+   /plugin install rvt-mcp@cad-mcp     # Revit
+   ```
+
+   or from the same extracted zip, for clients without plugin support.
+
+The marketplace cannot carry step 1: it serves `plugins/<product>/` straight from this repo, and the host assemblies are build output, not committed source. Per-product install detail — including the non-Claude clients — is in [docs/acd-mcp.md](docs/acd-mcp.md) and [docs/rvt-mcp.md](docs/rvt-mcp.md).
+
+Both products use the same bundle mechanism, with one difference worth knowing if you touch the manifests: AutoCAD's `ComponentEntry ModuleName` points at a **DLL**, Revit's points at an **`.addin` manifest**. The Revit bundle therefore wraps a `Contents\Rvt.Mcp.addin` rather than replacing it.
+
 
 ## Architecture
 
@@ -56,6 +67,8 @@ tests/
 plugins/
   acd-mcp/    plugin manifests, install hooks, skills, committed bridge binaries
   rvt-mcp/    plugin manifests, install hooks, committed bridge binaries
+autocad-bundle/ACD-MCP.bundle/   Autodesk ApplicationPlugin manifest; Contents/ filled at release
+revit-bundle/RVT-MCP.bundle/     same, plus the committed Contents/Rvt.Mcp.addin
 ```
 
 ## Build and test
