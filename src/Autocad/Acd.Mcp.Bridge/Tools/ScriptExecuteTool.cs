@@ -13,57 +13,37 @@ namespace Acd.Mcp.Bridge.Tools
             _client = client;
         }
 
+        // A snippet that fails to compile or throws is a normal result
+        // (success=false with diagnostics / stderr): the snippet went through
+        // the pipeline and the agent reads why. A bridge that cannot reach the
+        // plugin throws AcadTransportException / AcadRpcException — both
+        // McpExceptions, so the SDK returns them as isError results with the
+        // "[ERROR_CODE] detail" message.
         [McpServerTool(
             Name = "autocad_script_execute",
             ReadOnly = false,        // snippet can modify the drawing
             Destructive = true,      // can erase / overwrite entities
             Idempotent = false,      // session state persists; same call twice ≠ same effect
-            OpenWorld = true),       // can touch the file system, network, anything in-process
+            OpenWorld = true,        // can touch the file system, network, anything in-process
+            UseStructuredContent = true),
          Description(
             "Execute arbitrary C# code inside the running AutoCAD process against the active drawing. " +
             "The snippet runs on AutoCAD's main thread under a document lock. Variables declared at top " +
             "level persist across calls — it's a session, not a one-shot. Globals available: Doc (active " +
             "Document), Db (its Database), Ed (its Editor), CivilDoc (CivilDocument or null), Acd " +
             "(metadata façade). The full Autodesk.AutoCAD.* namespaces are imported (Civil 3D imports " +
-            "must be added per-submission). Returns an object with success, return_value_json, " +
-            "and elapsed_ms — plus, only when non-empty, stdout, stderr, and diagnostics (compile " +
-            "errors with line/col). Read return_value_json directly; it is the projected value " +
-            "(or a $unsupported / $serialization_error marker), never a JSON-encoded string.")]
-        public async Task<ExecuteResult> ExecuteAsync(
+            "must be added per-submission). success=false means the snippet did not compile " +
+            "(diagnostics) or threw (stderr). return_value_json is the projected value (or a " +
+            "$unsupported / $serialization_error marker), never a JSON-encoded string. An error result " +
+            "means the plugin was not reached; its text starts with the error code.")]
+        public Task<ExecuteResult> ExecuteAsync(
             [Description("C# code to execute. Multi-line allowed; may declare vars/methods; may end with an expression whose value is returned.")]
             string code,
             [Description("Optional cooperative timeout in milliseconds. A snippet that spins without observing its CancellationToken cannot be interrupted.")]
             int? timeout_ms = null,
             [Description("Optional AutoCAD process id to target. Omit when one instance has the plugin; pass it to pick one when several instances each have Acd.Mcp loaded.")]
             int? pid = null,
-            CancellationToken ct = default)
-        {
-            try
-            {
-                return await _client.ExecuteAsync(code, timeout_ms, pid, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Caller (e.g. MCP client shutting down) cancelled — let the SDK handle.
-                throw;
-            }
-            catch (AcadTransportException ex)
-            {
-                // Bridge couldn't reach the plugin (no AutoCAD, pipe down,
-                // retries exhausted). ExecuteResult has no dedicated
-                // error_code slot, so prepend the stable code to the
-                // runtime-error message — the agent's skill can parse it.
-                return ExecuteResult.Runtime(
-                    $"[{ex.ErrorCode}] {ex.Message}",
-                    0);
-            }
-            catch (AcadRpcException ex)
-            {
-                // Plugin returned a JSON-RPC error envelope.
-                return ExecuteResult.Runtime(
-                    $"AutoCAD reported an RPC error (code {ex.Code}): {ex.Message}",
-                    0);
-            }
-        }
+            CancellationToken ct = default) =>
+            _client.ExecuteAsync(code, timeout_ms, pid, ct);
     }
 }

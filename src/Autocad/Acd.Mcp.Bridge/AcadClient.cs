@@ -175,7 +175,9 @@ namespace Acd.Mcp.Bridge
 
     // Transport / protocol errors only. Snippet compile/runtime errors travel
     // inside ExecuteResult (Success=false) and do NOT throw.
-    public sealed class AcadRpcException : Exception
+    // An McpException, so the plugin's message (e.g. "NO_ACTIVE_DOCUMENT: ...")
+    // reaches the agent as the isError result text.
+    public sealed class AcadRpcException : ModelContextProtocol.McpException
     {
         public int Code { get; }
         public AcadRpcException(int code, string message) : base(message) { Code = code; }

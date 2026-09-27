@@ -1,8 +1,9 @@
+using ModelContextProtocol;
+
 namespace Acd.Mcp.Bridge
 {
-    // Transport-level failure taxonomy. The bridge surfaces these to the
-    // MCP tool wrappers so they can map to stable error_code strings the
-    // agent's skill can branch on (see docs/design/lifecycle-and-discovery-v2.md
+    // Transport-level failure taxonomy. Each maps to a stable error_code
+    // string the agent's skill can branch on (see docs/design/lifecycle-and-discovery-v2.md
     // and the matching <error-codes> section of the skill docs).
     //
     // NOT to be confused with AcadRpcException — that one carries a reply
@@ -37,14 +38,22 @@ namespace Acd.Mcp.Bridge
         PipeBroken,
     }
 
-    public sealed class AcadTransportException : Exception
+    // An McpException, so a tool that lets it escape becomes an isError
+    // result carrying Message — "[ERROR_CODE] detail", the form the skills
+    // branch on. (Any other exception type reaches the client as a generic
+    // "An error occurred invoking ..." with the message removed.)
+    public sealed class AcadTransportException : McpException
     {
         public AcadTransportFailure Reason { get; }
 
-        // Stable error_code string for tool envelopes. Mirrors Reason
-        // 1:1 but is the public name agents see — keep it stable across
-        // refactors of the enum.
-        public string ErrorCode => Reason switch
+        // The message without the error-code prefix.
+        public string Detail { get; }
+
+        // Stable error_code string agents see. Mirrors Reason 1:1 — keep it
+        // stable across refactors of the enum.
+        public string ErrorCode => CodeOf(Reason);
+
+        private static string CodeOf(AcadTransportFailure reason) => reason switch
         {
             AcadTransportFailure.NoAutoCadFound        => "NO_AUTOCAD_FOUND",
             AcadTransportFailure.AmbiguousAutoCads     => "AMBIGUOUS_AUTOCADS",
@@ -56,9 +65,10 @@ namespace Acd.Mcp.Bridge
         };
 
         public AcadTransportException(AcadTransportFailure reason, string message, Exception? inner = null)
-            : base(message, inner)
+            : base($"[{CodeOf(reason)}] {message}", inner)
         {
             Reason = reason;
+            Detail = message;
         }
     }
 }

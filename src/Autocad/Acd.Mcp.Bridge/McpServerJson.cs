@@ -19,5 +19,15 @@ namespace Acd.Mcp.Bridge
             {
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             };
+
+        // The AutoCAD bridge's wire names are snake_case: the DTO projection
+        // inside return_value_json is snake_case, and one convention across
+        // every result is what the agent (and the outputSchema) can rely on.
+        // Without it ExecuteResult alone went out camelCase.
+        public static JsonSerializerOptions SnakeCase { get; } =
+            new(Relaxed)
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            };
     }
 }

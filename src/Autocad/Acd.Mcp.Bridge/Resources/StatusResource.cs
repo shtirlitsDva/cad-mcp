@@ -51,7 +51,7 @@ namespace Acd.Mcp.Bridge.Resources
                     version = "<unknown>",
                     pid = 0,
                     pipe = "<unreachable>",
-                    transport_error = new { code = ex.ErrorCode, message = ex.Message },
+                    transport_error = new { code = ex.ErrorCode, message = ex.Detail },
                 };
                 return JsonSerializer.Serialize(fallback, ResourceJson.Indented);
             }
