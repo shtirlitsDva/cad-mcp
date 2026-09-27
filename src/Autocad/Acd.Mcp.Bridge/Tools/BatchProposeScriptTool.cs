@@ -23,7 +23,7 @@ namespace Acd.Mcp.Bridge.Tools
          Description(
             "Save a batch-flavour C# script to %APPDATA%\\Acd.Mcp\\scripts\\batch\\<name>.csx and push it " +
             "into the BATCH palette's live-shared editor. Before calling, READ %LOCALAPPDATA%\\Acd.Mcp\\" +
-            "editor-buffer.csx via ordinary file tools to see the editor's current content and plan the " +
+            "buffer-batch.csx via ordinary file tools to see the editor's current content and plan the " +
             "update against it (so you don't trample user edits). If the editor has dirty changes, the " +
             "user is prompted to confirm before your version replaces theirs (replaced_dirty=true). Same " +
             "name overwrites the existing saved script. See the acd-mcp:batch skill for the full workflow " +
