@@ -42,8 +42,8 @@ namespace Acd.Mcp.Batch.Runtime
 
         // Convenience accessor — every UI-state read is "if the palette
         // is open, ask its VM, else return null." Returning null lets
-        // each handler decide its own failure shape (some throw a
-        // PALETTE_CLOSED error code, some can degrade gracefully).
+        // each handler decide what a closed palette means (most throw a
+        // "palette is not open" error).
         private IBatchUiState? UiState => _paletteHost.CurrentBatchUiState;
 
         public async Task<object?> DispatchAsync(string method, JsonElement parameters, CancellationToken ct)
@@ -59,6 +59,7 @@ namespace Acd.Mcp.Batch.Runtime
                 "batch.getSavedScript"   => HandleGetSavedScript(parameters),
                 "batch.getEditor"     => HandleGetEditor(),
                 "batch.listFiles"     => HandleListFiles(),
+                "batch.setSelection"  => await HandleSetSelectionAsync(parameters, ct).ConfigureAwait(false),
                 _ => null, // signals "method not handled by this handler"
             };
         }
@@ -95,7 +96,6 @@ namespace Acd.Mcp.Batch.Runtime
 
             return new
             {
-                ok = true,
                 saved_as = saved.Path,
                 name = saved.Name,
                 replaced_dirty = willPromptForReplace,
@@ -154,37 +154,21 @@ namespace Acd.Mcp.Batch.Runtime
             });
         }
 
-        private object HandleListRuns(JsonElement p)
-        {
-            int limit = GetOptionalInt(p, "limit") ?? BatchRunHistory.DefaultLimit;
-            int offset = GetOptionalInt(p, "offset") ?? 0;
-            var summaries = _executor.History.ListRecent(limit, offset);
-            return new
-            {
-                limit,
-                offset,
-                total = _executor.History.Count(),
-                entries = summaries,
-            };
-        }
+        private RunPage HandleListRuns(JsonElement p) =>
+            _executor.History.ListRecent(
+                GetOptionalInt(p, "limit") ?? BatchRunHistory.DefaultLimit,
+                GetOptionalInt(p, "offset") ?? 0);
 
-        private object HandleGetRun(JsonElement p)
+        private BatchRunRecord HandleGetRun(JsonElement p)
         {
             var id = GetRequiredString(p, "run_id");
-            var report = _executor.History.Load(id);
-            if (report is null)
-                throw new InvalidOperationException($"No batch run with id '{id}'.");
-            return report;
+            return _executor.History.Load(id)
+                ?? throw new InvalidOperationException($"No batch run with id '{id}'.");
         }
 
-        private object HandleGetLastRun()
-        {
-            var summary = _executor.History.LoadLastSummary();
-            if (summary is null) return new { exists = false };
-            var report = _executor.History.Load(summary.RunId);
-            if (report is null) return new { exists = false };
-            return report;
-        }
+        private BatchRunRecord HandleGetLastRun() =>
+            _executor.History.LoadLast()
+                ?? throw new InvalidOperationException("No batch run exists yet. Start one with autocad_batch_run_test.");
 
         private object HandleListSavedScripts(JsonElement p)
         {
@@ -231,17 +215,50 @@ namespace Acd.Mcp.Batch.Runtime
             var uiState = UiState
                 ?? throw new InvalidOperationException(
                     "BATCH palette is not open. Open it (ACDMCP_PALETTE) to query the file list.");
+            return Selection(uiState);
+        }
 
-            var sel = uiState.CurrentSelection;
+        // The scan runs first, off the main thread: a network folder that
+        // does not answer must not freeze AutoCAD. Only the result goes to
+        // the palette, on the main thread (the view-model's thread), which
+        // opens on the BATCH tab. The palette keeps its selection when the
+        // scan throws.
+        private async Task<object> HandleSetSelectionAsync(JsonElement p, CancellationToken ct)
+        {
+            var folder = GetRequiredString(p, "folder");
+            var mask = GetRequiredString(p, "mask");
+            var recurse = GetOptionalBool(p, "recurse") ?? false;
+            var scan = await BatchFileSelection.FindAsync(folder, mask, recurse, ct).ConfigureAwait(false);
+            return await _paletteHost.OnBatchPaletteAsync(ui =>
+            {
+                ui.ApplySelection(folder, mask, recurse, scan);
+                return Selection(ui);
+            }, ct).ConfigureAwait(false);
+        }
+
+        // One shape for batch.listFiles and batch.setSelection.
+        private static object Selection(IBatchUiState ui)
+        {
+            var files = ui.CurrentSelection;
             return new
             {
-                folder = uiState.CurrentFolder,
-                mask = uiState.CurrentMask,
-                recurse = uiState.Recurse,
-                files = sel,
-                count = sel.Count,
-                on_failure = uiState.OnFailure.ToString(),
+                folder = ui.CurrentFolder,
+                mask = ui.CurrentMask,
+                recurse = ui.Recurse,
+                files,
+                count = files.Count,
+                on_failure = ui.OnFailure,
             };
+        }
+
+        // Absent -> null. Present with another type -> throws: a silently
+        // ignored argument would give a selection the agent did not ask for.
+        private static bool? GetOptionalBool(JsonElement p, string name)
+        {
+            if (p.ValueKind != JsonValueKind.Object || !p.TryGetProperty(name, out var e)
+                || e.ValueKind == JsonValueKind.Null) return null;
+            if (e.ValueKind is JsonValueKind.True or JsonValueKind.False) return e.GetBoolean();
+            throw new ArgumentException($"Parameter '{name}' must be a boolean.");
         }
 
         private static string GetRequiredString(JsonElement p, string name)
@@ -278,8 +295,8 @@ namespace Acd.Mcp.Batch.Runtime
     }
 
     // The UI owns folder / mask / file list + on-failure policy. The
-    // pipe queries via this narrow read-only surface; the WPF
-    // view-model implements it.
+    // pipe reads them, and sets the selection, via this narrow surface;
+    // the WPF view-model implements it. Call it on the main thread.
     //
     // The editor's dirty flag used to live here too (F19 in the
     // crash-test journal) — now that ScriptEditor is the single source
@@ -292,5 +309,10 @@ namespace Acd.Mcp.Batch.Runtime
         bool Recurse { get; }
         IReadOnlyList<string> CurrentSelection { get; }
         BatchOnFailure OnFailure { get; }
+
+        // Sets folder + mask + recurse and shows `scan`, which the caller got
+        // from BatchFileSelection.FindAsync for those values. A scan of the
+        // palette's own that is still running is discarded.
+        void ApplySelection(string folder, string mask, bool recurse, BatchFileScan scan);
     }
 }

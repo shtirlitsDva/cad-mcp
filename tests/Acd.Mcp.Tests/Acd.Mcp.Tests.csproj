@@ -26,6 +26,9 @@
   -->
   <ItemGroup>
     <Compile Include="..\..\src\Autocad\Acd.Mcp\Serialization\DtoHeader.cs" Link="Sut\DtoHeader.cs" />
+    <Compile Include="..\..\src\Autocad\Acd.Mcp\Batch\BatchFileSelection.cs" Link="Sut\BatchFileSelection.cs" />
+    <Compile Include="..\..\src\Autocad\Acd.Mcp\Batch\RecentFolderList.cs" Link="Sut\RecentFolderList.cs" />
+    <Compile Include="..\..\src\Autocad\Acd.Mcp\Pipe\MainThread.cs" Link="Sut\MainThread.cs" />
     <Compile Include="..\..\src\Autocad\Acd.Mcp.Api\Serialization\DtoRegistry.cs" Link="Sut\DtoRegistry.cs" />
     <Compile Include="..\..\src\Autocad\Acd.Mcp.Api\Serialization\IDtoProjection.cs" Link="Sut\IDtoProjection.cs" />
     <Compile Include="..\..\src\Autocad\Acd.Mcp\Serialization\IDtoReloadTrigger.cs" Link="Sut\IDtoReloadTrigger.cs" />

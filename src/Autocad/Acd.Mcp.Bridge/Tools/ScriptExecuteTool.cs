@@ -16,7 +16,8 @@ namespace Acd.Mcp.Bridge.Tools
         // A snippet that fails to compile or throws is a normal result
         // (success=false with diagnostics / stderr): the snippet went through
         // the pipeline and the agent reads why. A bridge that cannot reach the
-        // plugin throws AcadTransportException / AcadRpcException — both
+        // plugin throws AcadTransportException; a plugin that refuses the call
+        // gives AcadRpcException. Both are
         // McpExceptions, so the SDK returns them as isError results with the
         // "[ERROR_CODE] detail" message.
         [McpServerTool(
@@ -31,11 +32,14 @@ namespace Acd.Mcp.Bridge.Tools
             "The snippet runs on AutoCAD's main thread under a document lock. Variables declared at top " +
             "level persist across calls — it's a session, not a one-shot. Globals available: Doc (active " +
             "Document), Db (its Database), Ed (its Editor), CivilDoc (CivilDocument or null), Acd " +
-            "(metadata façade). The full Autodesk.AutoCAD.* namespaces are imported (Civil 3D imports " +
-            "must be added per-submission). success=false means the snippet did not compile " +
+            "(metadata façade). Imported namespaces: System, System.Collections.Generic, System.Linq, " +
+            "System.IO, System.Text, and Autodesk.AutoCAD.ApplicationServices / DatabaseServices / " +
+            "Geometry / EditorInput / Runtime. Any other namespace (e.g. Autodesk.AutoCAD.Colors, " +
+            "Autodesk.Civil.*) needs a using directive or the full type name. success=false means the snippet did not compile " +
             "(diagnostics) or threw (stderr). return_value_json is the projected value (or a " +
             "$unsupported / $serialization_error marker), never a JSON-encoded string. An error result " +
-            "means the plugin was not reached; its text starts with the error code.")]
+            "means the snippet did not run (plugin not reached, or the plugin refused the call); its text " +
+            "contains the error code in brackets, e.g. [PIPE_NOT_LISTENING].")]
         public Task<ExecuteResult> ExecuteAsync(
             [Description("C# code to execute. Multi-line allowed; may declare vars/methods; may end with an expression whose value is returned.")]
             string code,

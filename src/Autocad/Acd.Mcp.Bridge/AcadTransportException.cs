@@ -2,9 +2,9 @@ using ModelContextProtocol;
 
 namespace Acd.Mcp.Bridge
 {
-    // Transport-level failure taxonomy. Each maps to a stable error_code
-    // string the agent's skill can branch on (see docs/design/lifecycle-and-discovery-v2.md
-    // and the matching <error-codes> section of the skill docs).
+    // Transport-level failure taxonomy. Each maps to a stable error code that
+    // the agent sees in the isError text as "[ERROR_CODE] detail" (see
+    // docs/design/lifecycle-and-discovery-v2.md).
     //
     // NOT to be confused with AcadRpcException — that one carries a reply
     // the plugin sent (protocol-level failure). AcadTransportException
@@ -36,6 +36,12 @@ namespace Acd.Mcp.Bridge
         // The pipe accepted a connection, but the read/write that
         // followed failed (server closed mid-stream, etc.).
         PipeBroken,
+
+        // A reply arrived, but the bridge cannot read it: not JSON, a frame
+        // over the size limit, or a result of the wrong shape. Usually a
+        // bridge / plugin version mismatch. Not retried: the same reply
+        // comes again.
+        BadReply,
     }
 
     // An McpException, so a tool that lets it escape becomes an isError
@@ -49,7 +55,7 @@ namespace Acd.Mcp.Bridge
         // The message without the error-code prefix.
         public string Detail { get; }
 
-        // Stable error_code string agents see. Mirrors Reason 1:1 — keep it
+        // Stable error code string agents see. Mirrors Reason 1:1 — keep it
         // stable across refactors of the enum.
         public string ErrorCode => CodeOf(Reason);
 
@@ -61,6 +67,7 @@ namespace Acd.Mcp.Bridge
             AcadTransportFailure.PinnedPidGone         => "PINNED_PID_GONE",
             AcadTransportFailure.PipeNotListening      => "PIPE_NOT_LISTENING",
             AcadTransportFailure.PipeBroken            => "PIPE_BROKEN",
+            AcadTransportFailure.BadReply              => "BAD_REPLY",
             _ => "UNKNOWN_TRANSPORT_ERROR",
         };
 

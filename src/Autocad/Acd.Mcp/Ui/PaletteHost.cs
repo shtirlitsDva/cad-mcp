@@ -74,5 +74,18 @@ namespace Acd.Mcp.Ui
                 });
             }, null);
         }
+
+        // Long enough for a drawing to finish loading; short enough that a
+        // blocked main thread (a command or modal dialog) fails the call
+        // instead of hanging it.
+        private static readonly TimeSpan MainThreadTimeout = TimeSpan.FromSeconds(30);
+
+        public Task<T> OnBatchPaletteAsync<T>(Func<IBatchUiState, T> work, CancellationToken ct = default) =>
+            Pipe.MainThread.RunAsync(_mainSync, () =>
+            {
+                var p = GetOrCreateOnMainThread();
+                p.ShowBatchTab();
+                return work(p.BatchViewModel);
+            }, MainThreadTimeout, ct);
     }
 }

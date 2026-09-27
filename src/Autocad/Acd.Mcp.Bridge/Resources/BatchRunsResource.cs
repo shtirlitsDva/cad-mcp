@@ -1,5 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
+using Acd.Mcp.Batch;
 using ModelContextProtocol.Server;
 
 namespace Acd.Mcp.Bridge.Resources
@@ -11,14 +11,13 @@ namespace Acd.Mcp.Bridge.Resources
     //   acd-mcp://batch-runs/{run_id}
     //   acd-mcp://batch-runs/last
     //
-    // Pagination is mandatory per <feedback-loop>: /recent defaults to
-    // limit=20, max=100. The history list grows unbounded across plugin
-    // restarts; without pagination the agent's context would flood.
+    // Pagination is mandatory: /recent defaults to limit=20, max=100. The
+    // history grows unbounded across plugin restarts; without pagination the
+    // agent's context would flood.
     //
-    // The body is JSON text (TextResourceContents wrapping a UTF-8 JSON
-    // string). The MCP SDK can deserialise a String return into a single
-    // TextResourceContents; we serialise the JSON ourselves so the agent
-    // sees pretty-printed structure.
+    // Each body is a typed contract (RunPage / BatchRunRecord) read from the
+    // plugin and written as indented JSON text. A reply of the wrong shape is
+    // a BAD_REPLY error, not a partial body.
     [McpServerResourceType]
     public sealed class BatchRunsResource
     {
@@ -34,27 +33,25 @@ namespace Acd.Mcp.Bridge.Resources
             Name = "batch-runs-recent",
             MimeType = "application/json"),
          Description(
-            "Paginated newest-first list of completed batch runs. Each entry has run id, " +
-            "timestamps, mode, file count, pass/fail counts, cancellation flag, abort reason. " +
-            "Default limit 20; max 100. Use after autocad_batch_run_test to poll for results.")]
+            "Paginated newest-first list of completed batch runs: limit, offset, total, entries " +
+            "(run id, timestamps, requested mode, file / pass / failure counts, cancelled, aborted " +
+            "reason), and unreadable (history files that could not be read, with the reason). " +
+            "Default limit 20; max 100.")]
         public async Task<string> RecentAsync(
             [Description("Page size. Default 20, max 100.")] int? limit = null,
             [Description("Skip-N. Default 0.")] int? offset = null,
-            CancellationToken ct = default)
-        {
-            var json = await _client.CallRawAsync("batch.listRuns",
-                new { limit, offset }, ct: ct).ConfigureAwait(false);
-            return PrettyPrint(json);
-        }
+            CancellationToken ct = default) =>
+            ResourceJson.Serialize(await _client.CallAsync<RunPage>(
+                "batch.listRuns", new { limit, offset }, ct: ct).ConfigureAwait(false));
 
         [McpServerResource(
             UriTemplate = "acd-mcp://batch-runs/{run_id}",
             Name = "batch-run-by-id",
             MimeType = "application/json"),
          Description(
-            "Full per-file result of a specific batch run. Includes step-level outcomes " +
-            "(which Requires passed, which Apply summaries ran, which exceptions were " +
-            "caught), elapsed timings, and the cancellation status.")]
+            "Full per-file result of one batch run. Each file has phase, status (pass | failure), " +
+            "error_type / error_message, and steps; each step has kind (pass | failure), name, " +
+            "requirements (name, passed), and summary (pass) or error_type / error_message (failure).")]
         public async Task<string> ByIdAsync(
             [Description("The run id returned by autocad_batch_run_test (or from the recent list).")]
             string run_id,
@@ -63,11 +60,11 @@ namespace Acd.Mcp.Bridge.Resources
             // Reserved word: 'last' collides with the alias resource below.
             // The SDK's UriTemplate-based dispatch should pick the alias
             // first when the literal segment matches; we still guard.
-            if (string.Equals(run_id, "last", System.StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(run_id, "last", StringComparison.OrdinalIgnoreCase))
                 return await LastAsync(ct).ConfigureAwait(false);
 
-            var json = await _client.CallRawAsync("batch.getRun", new { run_id }, ct: ct).ConfigureAwait(false);
-            return PrettyPrint(json);
+            return ResourceJson.Serialize(await _client.CallAsync<BatchRunRecord>(
+                "batch.getRun", new { run_id }, ct: ct).ConfigureAwait(false));
         }
 
         [McpServerResource(
@@ -75,15 +72,10 @@ namespace Acd.Mcp.Bridge.Resources
             Name = "batch-run-last",
             MimeType = "application/json"),
          Description(
-            "Convenience alias for the most-recent batch run. Saves an extra round-trip " +
-            "to enumerate /recent just to read the freshest entry.")]
-        public async Task<string> LastAsync(CancellationToken ct = default)
-        {
-            var json = await _client.CallRawAsync("batch.getLastRun", new { }, ct: ct).ConfigureAwait(false);
-            return PrettyPrint(json);
-        }
-
-        private static string PrettyPrint(JsonElement el) =>
-            JsonSerializer.Serialize(el, ResourceJson.Indented);
+            "The most recent batch run, in the same shape as acd-mcp://batch-runs/{run_id}. " +
+            "An error when no run exists yet.")]
+        public async Task<string> LastAsync(CancellationToken ct = default) =>
+            ResourceJson.Serialize(await _client.CallAsync<BatchRunRecord>(
+                "batch.getLastRun", new { }, ct: ct).ConfigureAwait(false));
     }
 }

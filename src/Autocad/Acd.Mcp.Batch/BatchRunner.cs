@@ -179,66 +179,91 @@ namespace Acd.Mcp.Batch
                 BatchFileResult fileResult;
                 try
                 {
-                    using var session = _host.Open(path, lease);
-                    var ctx = new BatchContext(stateBag, phase, ct);
-                    var globals = _host.BuildGlobals(session, ctx);
+                    // A drawing that cannot be opened (empty or damaged:
+                    // ReadDwgFile throws eBadDwgHeader) fails this file only.
+                    // The On-failure choice below decides if the run goes on.
+                    IBatchSession? session = null;
+                    Exception? openError = null;
+                    try { session = _host.Open(path, lease); }
+                    catch (Exception ex) { openError = ex; }
 
-                    Exception? bodyError = null;
-                    try
+                    if (session is null)
                     {
-                        await _scriptHost.RunAsync(script, globals, ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // User cancelled mid-file. Record + bail.
                         fileResult = new BatchFileResult(
                             Path: path,
                             Phase: phase,
                             Status: FileOutcomeStatus.Failure,
-                            Steps: ctx.Steps,
+                            Steps: Array.Empty<StepOutcome>(),
                             Committed: false,
-                            Cancelled: true,
-                            Error: null,
+                            Cancelled: false,
+                            Error: openError,
                             ElapsedMs: sw.ElapsedMilliseconds);
-                        aggregated.Add(fileResult);
-                        progress?.Report(fileResult);
-                        break;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        bodyError = ex;
-                    }
-
-                    var status = (bodyError is null && !ctx.HasFailures)
-                        ? FileOutcomeStatus.Pass
-                        : FileOutcomeStatus.Failure;
-
-                    bool committed = false;
-                    if (isLive && status == FileOutcomeStatus.Pass)
-                    {
-                        try
+                        using (session)
                         {
-                            session.CommitAndSave();
-                            committed = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            // Commit/Save failed: surface as a file failure
-                            // so the user knows that file did NOT persist.
-                            bodyError = ex;
-                            status = FileOutcomeStatus.Failure;
+                            var ctx = new BatchContext(stateBag, phase, ct);
+                            var globals = _host.BuildGlobals(session, ctx);
+
+                            Exception? bodyError = null;
+                            try
+                            {
+                                await _scriptHost.RunAsync(script, globals, ct).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // User cancelled mid-file. Record + bail.
+                                fileResult = new BatchFileResult(
+                                    Path: path,
+                                    Phase: phase,
+                                    Status: FileOutcomeStatus.Failure,
+                                    Steps: ctx.Steps,
+                                    Committed: false,
+                                    Cancelled: true,
+                                    Error: null,
+                                    ElapsedMs: sw.ElapsedMilliseconds);
+                                aggregated.Add(fileResult);
+                                progress?.Report(fileResult);
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                bodyError = ex;
+                            }
+
+                            var status = (bodyError is null && !ctx.HasFailures)
+                                ? FileOutcomeStatus.Pass
+                                : FileOutcomeStatus.Failure;
+
+                            bool committed = false;
+                            if (isLive && status == FileOutcomeStatus.Pass)
+                            {
+                                try
+                                {
+                                    session.CommitAndSave();
+                                    committed = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Commit/Save failed: surface as a file failure
+                                    // so the user knows that file did NOT persist.
+                                    bodyError = ex;
+                                    status = FileOutcomeStatus.Failure;
+                                }
+                            }
+
+                            fileResult = new BatchFileResult(
+                                Path: path,
+                                Phase: phase,
+                                Status: status,
+                                Steps: ctx.Steps,
+                                Committed: committed,
+                                Cancelled: false,
+                                Error: bodyError,
+                                ElapsedMs: sw.ElapsedMilliseconds);
                         }
                     }
-
-                    fileResult = new BatchFileResult(
-                        Path: path,
-                        Phase: phase,
-                        Status: status,
-                        Steps: ctx.Steps,
-                        Committed: committed,
-                        Cancelled: false,
-                        Error: bodyError,
-                        ElapsedMs: sw.ElapsedMilliseconds);
                 }
                 finally
                 {

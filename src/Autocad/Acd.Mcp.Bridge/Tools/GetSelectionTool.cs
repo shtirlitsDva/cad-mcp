@@ -38,7 +38,7 @@ namespace Acd.Mcp.Bridge.Tools
             "(e.g. Polyline, BlockReference); block_name is set only for BlockReference entities (the " +
             "user-visible name for dynamic blocks, the BTR name otherwise); document_path is absent for " +
             "unsaved drawings. count=0 with empty entities when nothing is selected. No open drawing is " +
-            "an error result starting with NO_ACTIVE_DOCUMENT. Call this when the user says 'look at the " +
+            "an error result that contains NO_ACTIVE_DOCUMENT. Call this when the user says 'look at the " +
             "selected entity' or similar — much faster than asking them to LIST and paste the handle.")]
         public Task<GetSelectionResult> GetSelectionAsync(
             [Description("Optional AutoCAD process id to target. Omit when one instance has the plugin; pass it to pick one when several instances each have Acd.Mcp loaded.")]

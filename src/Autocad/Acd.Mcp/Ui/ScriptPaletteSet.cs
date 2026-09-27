@@ -41,12 +41,23 @@ namespace Acd.Mcp.Ui
             _scriptControl = new ScriptControl(executor, session, log, scriptScriptEditor);
             _batchControl = new BatchControl(batchExecutor);
             AddVisual("SCRIPT", _scriptControl);
+            _batchTabIndex = Count;
             AddVisual("BATCH", _batchControl);
         }
+
+        private readonly int _batchTabIndex;
 
         // Public so the plugin can wire the BATCH VM into the pipe handler
         // as the IBatchUiState provider.
         public BatchViewModel BatchViewModel => _batchControl.ViewModel;
+
+        // For agent calls that change the BATCH tab: the user must see the
+        // change, also when the palette was closed or showed SCRIPT.
+        public void ShowBatchTab()
+        {
+            Visible = true;
+            Activate(_batchTabIndex);
+        }
 
         protected override void Dispose(bool disposing)
         {

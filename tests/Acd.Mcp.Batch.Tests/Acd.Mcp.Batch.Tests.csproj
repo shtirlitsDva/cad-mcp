@@ -20,6 +20,12 @@
     <ProjectReference Include="..\..\src\Autocad\Acd.Mcp.Batch\Acd.Mcp.Batch.csproj" />
   </ItemGroup>
 
+  <!-- Real history files written by earlier plugin builds: the record
+       contract must keep loading them. -->
+  <ItemGroup>
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.0" />

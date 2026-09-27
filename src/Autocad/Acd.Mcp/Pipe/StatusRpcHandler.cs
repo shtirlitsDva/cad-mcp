@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Acd.Mcp.Ui;
 
 namespace Acd.Mcp.Pipe
 {
@@ -32,20 +31,4 @@ namespace Acd.Mcp.Pipe
             };
         }
     }
-
-    // Wire shape for acdmcp.status. Each capability carries one of
-    // "ready" / "degraded:<reason>" / "unavailable:<reason>" so the
-    // agent can branch on a single string compare per capability.
-    public sealed record StatusSnapshot(
-        string version,
-        int pid,
-        string pipe,
-        CapabilityState script_execute,
-        CapabilityState script_propose,
-        CapabilityState batch_propose,
-        CapabilityState batch_run_test,
-        CapabilityState batch_list_files,
-        CapabilityState dto);
-
-    public sealed record CapabilityState(string status, string? reason);
 }

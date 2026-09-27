@@ -401,9 +401,9 @@ namespace Acd.Mcp
             bool pipeUp = _listener is { IsRunning: true };
             bool palette = _paletteHost?.IsOpen ?? false;
 
-            CapabilityState ready() => new("ready", null);
-            CapabilityState unavailable(string r) => new("unavailable", r);
-            CapabilityState degraded(string r) => new("degraded", r);
+            CapabilityState ready() => new(CapabilityStatus.Ready);
+            CapabilityState unavailable(string r) => new(CapabilityStatus.Unavailable, r);
+            CapabilityState degraded(string r) => new(CapabilityStatus.Degraded, r);
 
             return new StatusSnapshot(
                 version: Version,
@@ -414,6 +414,8 @@ namespace Acd.Mcp
                 batch_propose:       pipeUp ? ready() : unavailable("PIPE_NOT_LISTENING"),
                 batch_run_test:      pipeUp ? (palette ? ready() : degraded("PALETTE_CLOSED")) : unavailable("PIPE_NOT_LISTENING"),
                 batch_list_files:    pipeUp ? (palette ? ready() : degraded("PALETTE_CLOSED")) : unavailable("PIPE_NOT_LISTENING"),
+                // Opens the palette itself, so it needs only the pipe.
+                batch_set_selection: pipeUp ? ready() : unavailable("PIPE_NOT_LISTENING"),
                 dto:                 _dtoRpc is null ? unavailable("DTO_NOT_READY") : ready());
         }
 

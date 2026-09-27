@@ -1,25 +1,17 @@
-using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Acd.Mcp.Bridge.Resources
 {
-    // Shared serializer options for MCP resource bodies. Two reasons it is a
-    // single cached instance rather than `new JsonSerializerOptions { ... }`
-    // per call:
-    //
-    //   * Encoder — these bodies are read by an agent over a JSON-RPC byte
-    //     stream, not embedded in HTML. The default HTML-safe encoder escapes
-    //     '<' '>' '&' backtick and all non-ASCII as \uXXXX; the relaxed encoder
-    //     emits them literally (only '"' '\' and control chars stay escaped).
-    //   * Caching — System.Text.Json caches type metadata per options
-    //     instance, so a fresh options on every resource read both produced the
-    //     escaped output and threw that cache away each time.
+    // Serializer for MCP resource bodies: the agent-facing policy of the tool
+    // results (McpServerJson.SnakeCase — relaxed encoder, snake_case names,
+    // enum values as snake_case names), indented for reading. One cached
+    // instance, because System.Text.Json caches type metadata per options
+    // instance.
     internal static class ResourceJson
     {
-        public static readonly JsonSerializerOptions Indented = new()
-        {
-            WriteIndented = true,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        };
+        private static readonly JsonSerializerOptions Indented =
+            new(McpServerJson.SnakeCase) { WriteIndented = true };
+
+        public static string Serialize<T>(T contract) => JsonSerializer.Serialize(contract, Indented);
     }
 }

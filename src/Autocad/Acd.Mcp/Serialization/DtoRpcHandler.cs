@@ -26,23 +26,17 @@ namespace Acd.Mcp.Serialization
             };
         }
 
-        private object GetDiagnostics()
+        private DtoDiagnosticsReport GetDiagnostics()
         {
-            var entries = _diagnostics.All.Select(f => new
-            {
-                source = f.Source,
-                header_type = f.HeaderType,
-                resolved_type = f.ResolvedType?.FullName,
-                message = f.Message,
-                line = f.Line,
-                column = f.Column,
-                error_code = f.ErrorCode,
-            }).ToList();
-            return new
-            {
-                count = entries.Count,
-                entries,
-            };
+            var entries = _diagnostics.All.Select(f => new DtoDiagnosticEntry(
+                Source: f.Source,
+                HeaderType: f.HeaderType,
+                Message: f.Message,
+                ResolvedType: f.ResolvedType?.FullName,
+                Line: f.Line,
+                Column: f.Column,
+                ErrorCode: f.ErrorCode)).ToArray();
+            return new DtoDiagnosticsReport(entries.Length, entries);
         }
     }
 }

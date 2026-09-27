@@ -43,6 +43,29 @@ namespace Acd.Mcp.Batch.Ui
         [ObservableProperty] private bool _recurse = false;
         [ObservableProperty] private string _matchedSummary = "(no folder selected)";
 
+        // Drives the colour of the summary box and its file-list tooltip.
+        // The lists are relative to Folder and in the same order as Files.
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasFileLists))]
+        private FileMatchState _matchState = FileMatchState.Empty;
+        [ObservableProperty] private IReadOnlyList<string> _matchedNames = Array.Empty<string>();
+        [ObservableProperty] private IReadOnlyList<string> _unmatchedNames = Array.Empty<string>();
+
+        // The hover list has something to show only after a scan that found the folder.
+        public bool HasFileLists => MatchState is FileMatchState.Matched or FileMatchState.NoMatch;
+
+        // Only the newest scan may show its result (see ScanAsync).
+        private int _scanGeneration;
+
+        // The folder of the last scan that found it. Browse may start there
+        // without a risk of waiting for a network folder.
+        private string? _lastScannedFolder;
+
+        // The Folder dropdown: newest first, saved at each change.
+        private readonly RecentFolderList _recent = RecentFolderList.Load(RecentFolderList.DefaultPath);
+        public ObservableCollection<string> RecentFolders { get; } = new();
+        [ObservableProperty] private bool _isRecentFoldersOpen;
+
         // CurrentScript is hand-coded (not [ObservableProperty]) because we
         // need a "set without flipping IsDirty" path for agent-pushed updates
         // and Manage-Scripts loads.
@@ -112,6 +135,7 @@ namespace Acd.Mcp.Batch.Ui
             executor.FileCompleted += OnFileCompleted;
             executor.RunCompleted += OnRunCompleted;
 
+            ShowRecentFolders();
             UpdateStatus();
         }
 
@@ -126,42 +150,118 @@ namespace Acd.Mcp.Batch.Ui
             SetProperty(ref _currentScript, value, nameof(CurrentScript));
         }
 
-        [RelayCommand]
-        private void Refresh() => SafeBoundary.Run("BatchVm.Refresh", () =>
+        // The user's Refresh. The scan runs off the UI thread, so a network
+        // folder that does not answer never freezes AutoCAD; a selection that
+        // cannot be found shows its reason in the summary box. A second
+        // Refresh may start while the first still waits: the newer one wins.
+        [RelayCommand(AllowConcurrentExecutions = true)]
+        private Task RefreshAsync() => SafeBoundary.RunAsync("BatchVm.Refresh", ScanAsync);
+
+        private async Task ScanAsync()
         {
-            Files.Clear();
-            if (string.IsNullOrWhiteSpace(Folder) || !Directory.Exists(Folder))
+            var generation = ++_scanGeneration;
+            var folder = Folder;
+            if (string.IsNullOrWhiteSpace(folder))
             {
-                MatchedSummary = "(no folder selected)";
+                ShowNoFiles(FileMatchState.Empty, "(no folder selected)");
                 return;
             }
-            var opt = Recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var found = Directory.EnumerateFiles(Folder, string.IsNullOrWhiteSpace(Mask) ? "*.dwg" : Mask, opt)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            foreach (var f in found) Files.Add(f);
-            MatchedSummary = $"{found.Length} file{(found.Length == 1 ? "" : "s")} matched.";
+            ShowNoFiles(FileMatchState.Scanning, "Scanning…");
+            try
+            {
+                var scan = await BatchFileSelection.FindAsync(folder, Mask, Recurse);
+                if (generation != _scanGeneration) return;
+                ShowScan(folder, scan);
+            }
+            catch (Exception ex) when (ex is IOException or ArgumentException
+                                          or UnauthorizedAccessException or TimeoutException)
+            {
+                if (generation != _scanGeneration) return;
+                ShowNoFiles(FileMatchState.Error, ex.Message);
+            }
+        }
+
+        // The agent's set + refresh (IBatchUiState). The caller scanned off
+        // the main thread; a scan of the palette's own that still runs is
+        // discarded when it ends.
+        public void ApplySelection(string folder, string mask, bool recurse, BatchFileScan scan)
+        {
+            ++_scanGeneration;
+            Folder = folder;
+            Mask = mask;
+            Recurse = recurse;
+            ShowScan(folder, scan);
+        }
+
+        private void ShowScan(string folder, BatchFileScan scan)
+        {
+            Files.Clear();
+            foreach (var f in scan.Matched) Files.Add(f);
+            MatchedNames = scan.Matched.Select(p => Path.GetRelativePath(folder, p)).ToArray();
+            UnmatchedNames = scan.Unmatched.Select(p => Path.GetRelativePath(folder, p)).ToArray();
+            MatchState = scan.Matched.Count > 0 ? FileMatchState.Matched : FileMatchState.NoMatch;
+            MatchedSummary = $"{scan.Matched.Count} file{(scan.Matched.Count == 1 ? "" : "s")} matched.";
+            _lastScannedFolder = folder;
+            SafeBoundary.Run("BatchVm.RememberFolder", () =>
+            {
+                _recent.Add(folder);
+                ShowRecentFolders();
+            });
+        }
+
+        private void ShowNoFiles(FileMatchState state, string summary)
+        {
+            Files.Clear();
+            MatchedNames = Array.Empty<string>();
+            UnmatchedNames = Array.Empty<string>();
+            MatchState = state;
+            MatchedSummary = summary;
+        }
+
+        // A pick from the dropdown: set the folder and scan it at once.
+        [RelayCommand(AllowConcurrentExecutions = true)]
+        private Task PickRecentFolderAsync(string folder) => SafeBoundary.RunAsync("BatchVm.PickRecentFolder", () =>
+        {
+            IsRecentFoldersOpen = false;
+            Folder = folder;
+            return ScanAsync();
         });
 
         [RelayCommand]
-        private void Browse() => SafeBoundary.Run("BatchVm.Browse", () =>
+        private void RemoveRecentFolder(string folder) => SafeBoundary.Run("BatchVm.RemoveRecentFolder", () =>
         {
-            // WPF doesn't have a built-in folder picker; the standard
-            // approach for plugin-internal use is Win32's OpenFolderDialog
-            // (System.Windows.Forms.FolderBrowserDialog). We avoid the
-            // WinForms dep by using Windows API CodePack or by accepting
-            // a typed path. Keep it simple here: prompt via input box.
-            // Real-world hosts can swap in a richer picker.
+            _recent.Remove(folder);
+            ShowRecentFolders();
+        });
+
+        // Changes RecentFolders in place (Move / Insert / RemoveAt) instead of
+        // Clear + Add, so the ComboBox keeps its text and its open dropdown.
+        private void ShowRecentFolders()
+        {
+            var items = _recent.Items;
+            for (var i = 0; i < items.Count; i++)
+            {
+                var at = RecentFolders.IndexOf(items[i]);
+                if (at == i) continue;
+                if (at > i) RecentFolders.Move(at, i);
+                else RecentFolders.Insert(i, items[i]);
+            }
+            while (RecentFolders.Count > items.Count) RecentFolders.RemoveAt(RecentFolders.Count - 1);
+        }
+
+        [RelayCommand]
+        private Task BrowseAsync() => SafeBoundary.RunAsync("BatchVm.Browse", () =>
+        {
+            // The start folder is given only when its last scan succeeded:
+            // the dialog must not wait for a network folder that does not answer.
             var dlg = new Microsoft.Win32.OpenFolderDialog
             {
                 Title = "Select drawings folder",
-                InitialDirectory = Directory.Exists(Folder) ? Folder : "",
+                InitialDirectory = Folder == _lastScannedFolder ? Folder : "",
             };
-            if (dlg.ShowDialog() == true)
-            {
-                Folder = dlg.FolderName;
-                Refresh();
-            }
+            if (dlg.ShowDialog() != true) return Task.CompletedTask;
+            Folder = dlg.FolderName;
+            return ScanAsync();
         });
 
         [RelayCommand(CanExecute = nameof(CanRun))]
@@ -174,8 +274,10 @@ namespace Acd.Mcp.Batch.Ui
             _executor.StartRunFromUi(mode, Files.ToArray(), OnFailure);
         });
 
-        private bool CanRun() => !IsRunning;
+        // No run while a scan is still running: Files is not complete yet.
+        private bool CanRun() => !IsRunning && MatchState != FileMatchState.Scanning;
         partial void OnIsRunningChanged(bool value) => RunCommand.NotifyCanExecuteChanged();
+        partial void OnMatchStateChanged(FileMatchState value) => RunCommand.NotifyCanExecuteChanged();
 
         [RelayCommand]
         private void Cancel() => SafeBoundary.Run("BatchVm.Cancel", () => _executor.Cancel());
@@ -300,6 +402,10 @@ namespace Acd.Mcp.Batch.Ui
             });
         }
     }
+
+    // Empty: no folder entered. Scanning: a scan still runs. Error: the
+    // folder or mask cannot select files, or the folder did not answer.
+    public enum FileMatchState { Empty, Scanning, Matched, NoMatch, Error }
 
     // Per-row view-model for the results list. Computes the display text
     // and a status glyph; nothing else.

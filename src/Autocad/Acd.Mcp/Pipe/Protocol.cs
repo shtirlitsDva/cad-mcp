@@ -69,6 +69,10 @@ namespace Acd.Mcp.Pipe
             // encoder so '<' '>' '&' backtick and non-ASCII go over the wire
             // literally instead of as \uXXXX. (Shared by plugin + bridge.)
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            // Enums cross as names: a number means nothing to the reader and
+            // changes meaning when an enum is reordered. Reading still takes
+            // numbers, from a plugin of an earlier build.
+            Converters = { new JsonStringEnumConverter() },
         };
 
         // Returns null on clean disconnect before a new frame starts.

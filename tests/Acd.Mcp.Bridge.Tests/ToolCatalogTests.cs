@@ -43,12 +43,12 @@ namespace Acd.Mcp.Bridge.Tests
         public static TheoryData<string> ToolNames() => new(BuildCatalog().Keys);
 
         [Fact]
-        public void Catalog_HasTheSixTools()
+        public void Catalog_HasTheSevenTools()
         {
             Assert.Equal(
                 new[]
                 {
-                    "autocad_batch_list_files", "autocad_batch_propose_script", "autocad_batch_run_test",
+                    "autocad_batch_list_files", "autocad_batch_propose_script", "autocad_batch_run_test", "autocad_batch_set_selection",
                     "autocad_get_selection", "autocad_script_execute", "autocad_script_propose",
                 },
                 Tools.Keys.OrderBy(k => k));
@@ -122,6 +122,23 @@ namespace Acd.Mcp.Bridge.Tests
             Assert.Contains("elapsed_ms", props);
         }
 
+        // The palette's "On failure" choice (Abort | Skip) decides what a run
+        // does after a failed file; the agent names it in the Live hand-off.
+        [Fact]
+        public void BatchListFiles_ReportsTheOnFailureChoice()
+        {
+            Assert.Contains("on_failure", Properties("autocad_batch_list_files"));
+        }
+
+        // An enum, so the schema lists the values in the agent's convention.
+        [Fact]
+        public void BatchListFiles_OnFailureIsAnEnumOfSnakeCaseNames()
+        {
+            var schema = JsonNode.Parse(Tools["autocad_batch_list_files"].OutputSchema!.Value.GetRawText())!;
+            var values = schema["properties"]!["on_failure"]!["enum"]!.AsArray().Select(v => (string?)v);
+            Assert.Equal(new[] { "abort", "skip" }, values);
+        }
+
         // openWorldHint is for tools that reach outside the server's own
         // domain. Only script_execute runs arbitrary code, which can.
         [Theory]
@@ -131,6 +148,7 @@ namespace Acd.Mcp.Bridge.Tests
         [InlineData("autocad_batch_list_files", false)]
         [InlineData("autocad_batch_propose_script", false)]
         [InlineData("autocad_batch_run_test", false)]
+        [InlineData("autocad_batch_set_selection", false)]
         public void OpenWorld_OnlyWhereTheToolReachesOutside(string tool, bool openWorld)
         {
             Assert.Equal(openWorld, Tools[tool].Annotations?.OpenWorldHint);
@@ -151,6 +169,26 @@ namespace Acd.Mcp.Bridge.Tests
         {
             Assert.False(Tools["autocad_batch_run_test"].Annotations?.ReadOnlyHint);
             Assert.False(Tools["autocad_batch_run_test"].Annotations?.DestructiveHint);
+        }
+
+        // It replaces the palette's selection (state), deletes nothing, and
+        // the same arguments give the same selection.
+        [Fact]
+        public void BatchSetSelection_ChangesStateIdempotently()
+        {
+            var a = Tools["autocad_batch_set_selection"].Annotations;
+            Assert.False(a?.ReadOnlyHint);
+            Assert.False(a?.DestructiveHint);
+            Assert.True(a?.IdempotentHint);
+        }
+
+        // Both tools describe the same selection, so they give the same shape.
+        [Fact]
+        public void BatchSetSelection_ReturnsTheListFilesShape()
+        {
+            Assert.Equal(
+                Tools["autocad_batch_list_files"].OutputSchema!.Value.GetRawText(),
+                Tools["autocad_batch_set_selection"].OutputSchema!.Value.GetRawText());
         }
 
         // The SDK passes an McpException's Message to the agent as the
