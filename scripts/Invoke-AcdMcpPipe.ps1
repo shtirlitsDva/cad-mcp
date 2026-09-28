@@ -100,11 +100,13 @@ try {
     $json = $req | ConvertTo-Json -Depth 16 -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $len = $bytes.Length
+    # Each element parenthesised: the comma operator binds tighter than
+    # -band, so without them the elements fold into one array expression.
     $lenBuf = [byte[]]@(
-        ($len -shr 24) -band 0xFF,
-        ($len -shr 16) -band 0xFF,
-        ($len -shr  8) -band 0xFF,
-        ($len       ) -band 0xFF
+        (($len -shr 24) -band 0xFF),
+        (($len -shr 16) -band 0xFF),
+        (($len -shr  8) -band 0xFF),
+        ($len -band 0xFF)
     )
     $client.Write($lenBuf, 0, 4)
     $client.Write($bytes, 0, $bytes.Length)
