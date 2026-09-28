@@ -118,6 +118,9 @@ namespace Acd.Mcp.Batch.Runtime
             CancellationTokenSource cts;
             Task<BatchRunReport> task;
             string runId = NewRunId();
+            var startedAt = DateTimeOffset.Now;
+            // The results reported so far, for a run that ends without a report.
+            var resultsSoFar = new List<BatchFileResult>();
             // ScriptEditor's slot has its own lock; snapshot the body
             // first, then take the run lock for the active-run state.
             var body = _editor.CurrentText;
@@ -127,34 +130,46 @@ namespace Acd.Mcp.Batch.Runtime
                     throw new InvalidOperationException("A batch run is already in progress. Cancel it first.");
                 cts = new CancellationTokenSource();
                 _activeCts = cts;
-                task = RunCoreAsync(body, files, mode, runId, cts.Token, onFailure);
+                task = RunCoreAsync(body, files, mode, runId, cts.Token, onFailure, resultsSoFar);
                 _activeRun = task;
             }
             // Wire up history write + RunCompleted dispatch when the task
             // settles. Continuation runs on a threadpool thread; UI hosts
             // marshal back as needed via their own dispatcher.
+            //
+            // Every end raises RunCompleted, also a run that threw or was
+            // cancelled before it started: the palette keeps Run disabled
+            // until RunCompleted arrives.
             _ = task.ContinueWith(t =>
             {
-                if (t.IsCompletedSuccessfully && t.Result is { } report)
+                BatchRunReport report;
+                if (t.IsCompletedSuccessfully)
                 {
-                    SafeBoundary.Run("BatchExecutor.HistorySave", () => History.Save(report));
-                    SafeBoundary.Run("BatchExecutor.RunCompleted",
-                        () => RunCompleted?.Invoke(this, report));
+                    report = t.Result;
+                }
+                else
+                {
+                    var error = t.Exception?.GetBaseException();
+                    if (error is not null) SafeBoundary.Report(error, "BatchExecutor.RunCore");
+                    lock (resultsSoFar)
+                        report = BatchRunReport.ForUnfinishedRun(runId, startedAt, mode, files,
+                            resultsSoFar.ToArray(), error);
+                }
 
-                    // Explicit completion marker — the /acd-mcp:batch skill
-                    // tells the agent to watch %LOCALAPPDATA%\Acd.Mcp\log.txt
-                    // for this exact line with the Monitor tool, so agents
-                    // wake up once instead of polling acd-mcp://batch-runs.
-                    int pass = 0;
-                    foreach (var r in report.Results)
-                        if (r.Status == FileOutcomeStatus.Pass) pass++;
-                    SafeBoundary.Info("BatchExecutor",
-                        $"BATCH RUN COMPLETED {report.RunId} ({pass}/{report.Results.Count})");
-                }
-                else if (t.Exception is { } ex)
-                {
-                    SafeBoundary.Report(ex.GetBaseException(), "BatchExecutor.RunCore");
-                }
+                SafeBoundary.Run("BatchExecutor.HistorySave", () => History.Save(report));
+                SafeBoundary.Run("BatchExecutor.RunCompleted",
+                    () => RunCompleted?.Invoke(this, report));
+
+                // Explicit completion marker — the /acd-mcp:batch skill
+                // tells the agent to watch %LOCALAPPDATA%\Acd.Mcp\log.txt
+                // for this exact line with the Monitor tool, so agents
+                // wake up once instead of polling acd-mcp://batch-runs.
+                int pass = 0;
+                foreach (var r in report.Results)
+                    if (r.Status == FileOutcomeStatus.Pass) pass++;
+                SafeBoundary.Info("BatchExecutor",
+                    $"BATCH RUN COMPLETED {report.RunId} ({pass}/{report.Results.Count})");
+
                 lock (_runLock)
                 {
                     _activeCts?.Dispose();
@@ -186,14 +201,17 @@ namespace Acd.Mcp.Batch.Runtime
 
         private Task<BatchRunReport> RunCoreAsync(
             string body, IReadOnlyList<string> files, BatchMode mode, string runId, CancellationToken ct,
-            BatchOnFailure onFailure)
+            BatchOnFailure onFailure, List<BatchFileResult> resultsSoFar)
         {
             // We hand the runner a synchronous IProgress; the executor
             // re-publishes to FileCompleted. WPF hosts marshal back to the
             // dispatcher via their own handler.
             var progress = new SyncProgress<BatchFileResult>(r =>
+            {
+                lock (resultsSoFar) resultsSoFar.Add(r);
                 SafeBoundary.Run("BatchExecutor.FileCompleted",
-                    () => FileCompleted?.Invoke(this, r)));
+                    () => FileCompleted?.Invoke(this, r));
+            });
 
             return Task.Run(async () =>
             {

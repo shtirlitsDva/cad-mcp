@@ -11,9 +11,10 @@ namespace Acd.Mcp.Serialization
     // CSharpScript submission against DtoRegistrationGlobals, and lets the
     // body register projections into the shared DtoRegistry.
     //
-    // Resolution rule: user overrides system. The loader achieves this by
-    // compiling the system folder FIRST and the user folder SECOND, with the
-    // registry's Register call overwriting on conflict.
+    // Resolution rule: user overrides system. The loader tags each file with
+    // its DtoLayer, and the registry returns the User DTO before the System
+    // DTO. So the compile order does not matter, also for Refresh, which
+    // compiles only the files that changed.
     //
     // Threading: the public methods take a coarse lock so concurrent reload
     // triggers don't fight. The compile itself is bound by Roslyn's own
@@ -48,8 +49,8 @@ namespace Acd.Mcp.Serialization
                 _registry.Clear();
                 _diagnostics.Clear();
                 _mtimes.Clear();
-                CompileFolder(DtoPaths.SystemFolder, "system");
-                CompileFolder(DtoPaths.UserFolder, "user");
+                CompileFolder(DtoPaths.SystemFolder, DtoLayer.System);
+                CompileFolder(DtoPaths.UserFolder, DtoLayer.User);
             }
         }
 
@@ -60,12 +61,12 @@ namespace Acd.Mcp.Serialization
         {
             lock (_gate)
             {
-                CompileFolder(DtoPaths.SystemFolder, "system", incrementalOnly: true);
-                CompileFolder(DtoPaths.UserFolder, "user", incrementalOnly: true);
+                CompileFolder(DtoPaths.SystemFolder, DtoLayer.System, incrementalOnly: true);
+                CompileFolder(DtoPaths.UserFolder, DtoLayer.User, incrementalOnly: true);
             }
         }
 
-        private void CompileFolder(string folder, string tag, bool incrementalOnly = false)
+        private void CompileFolder(string folder, DtoLayer layer, bool incrementalOnly = false)
         {
             if (!Directory.Exists(folder)) return;
 
@@ -75,12 +76,12 @@ namespace Acd.Mcp.Serialization
                 if (incrementalOnly && _mtimes.TryGetValue(path, out var prev) && prev == mtime)
                     continue;
 
-                CompileOne(path, tag);
+                CompileOne(path, layer);
                 _mtimes[path] = mtime;
             }
         }
 
-        private void CompileOne(string path, string tag)
+        private void CompileOne(string path, DtoLayer layer)
         {
             string source;
             try { source = File.ReadAllText(path); }
@@ -90,7 +91,9 @@ namespace Acd.Mcp.Serialization
                 return;
             }
 
-            var sourceTag = $"{tag}:{Path.GetFileName(path)}";
+            // "system:circle.csx" / "user:circle.csx" — the form the diagnostics
+            // and the $unsupported reason show.
+            var sourceTag = $"{layer.ToString().ToLowerInvariant()}:{Path.GetFileName(path)}";
 
             // Parse the @dto header so a compile failure can be keyed by
             // the type the file was *meant* to register (the converter
@@ -102,7 +105,7 @@ namespace Acd.Mcp.Serialization
                 ? null
                 : ResolveType(headerType);
 
-            var api = new DtoRegistrationApi(_registry, _dataProvider, sourceTag);
+            var api = new DtoRegistrationApi(_registry, _dataProvider, layer, sourceTag);
             var globals = new DtoRegistrationGlobals(api);
 
             try

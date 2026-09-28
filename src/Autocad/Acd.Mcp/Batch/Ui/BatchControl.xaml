@@ -42,25 +42,55 @@
                 <TextBlock Grid.Row="0" Grid.Column="0"
                            Text="Folder:" VerticalAlignment="Center" Margin="0,0,6,2"
                            Style="{StaticResource Text.Secondary}"/>
-                <TextBox Grid.Row="0" Grid.Column="1"
-                         Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,6,2"/>
+                <ComboBox Grid.Row="0" Grid.Column="1"
+                          Style="{StaticResource ComboBox.RecentFolders}"
+                          Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}"
+                          ItemsSource="{Binding RecentFolders}"
+                          IsDropDownOpen="{Binding IsRecentFoldersOpen}"
+                          Margin="0,0,6,2"/>
                 <Button Grid.Row="0" Grid.Column="2"
                         Content="Browse…" Command="{Binding BrowseCommand}"
                         Margin="0,0,0,2"/>
 
-                <DockPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" LastChildFill="True">
-                    <TextBlock Text="Mask:" VerticalAlignment="Center"
-                               Style="{StaticResource Text.Secondary}" Margin="0,0,6,0"/>
+                <!-- The label shares column 0 with "Folder:", so both boxes start at one x. -->
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="Mask:" VerticalAlignment="Center" Margin="0,0,6,0"
+                           Style="{StaticResource Text.Secondary}"/>
+                <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" LastChildFill="True">
                     <TextBox Width="140" Margin="0,0,12,0"
                              Text="{Binding Mask, UpdateSourceTrigger=PropertyChanged}"/>
                     <CheckBox Content="Recurse" Margin="0,0,12,0"
                               IsChecked="{Binding Recurse}"
                               VerticalAlignment="Center"/>
                     <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,12,0"/>
-                    <TextBlock Text="{Binding MatchedSummary}"
-                               Style="{StaticResource Text.Secondary}"
-                               VerticalAlignment="Center"/>
+                    <!-- Hover opens the file list; the wheel on the box
+                         scrolls it (BatchControl.xaml.cs). -->
+                    <Border x:Name="MatchBadge" Style="{StaticResource Border.MatchBadge}"
+                            MouseEnter="OnMatchAreaMouseEnter" MouseLeave="OnMatchAreaMouseLeave"
+                            PreviewMouseWheel="OnMatchBadgeMouseWheel">
+                        <Grid>
+                            <TextBlock Text="{Binding MatchedSummary}"
+                                       Style="{StaticResource Text.Secondary}"/>
+                            <Popup x:Name="MatchPopup" Style="{StaticResource Popup.FileList}"
+                                   PlacementTarget="{Binding ElementName=MatchBadge}">
+                                <Border Style="{StaticResource Border.FileListPopup}"
+                                        MouseEnter="OnMatchAreaMouseEnter" MouseLeave="OnMatchAreaMouseLeave">
+                                    <ScrollViewer x:Name="MatchScroll" Style="{StaticResource ScrollViewer.FileList}">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource Text.SectionHeader}"
+                                                       Text="{Binding MatchedNames.Count, StringFormat='Matched ({0})'}"/>
+                                            <ItemsControl Style="{StaticResource ItemsControl.FileMatched}"
+                                                          ItemsSource="{Binding MatchedNames}"/>
+                                            <TextBlock Style="{StaticResource Text.SectionHeader}"
+                                                       Text="{Binding UnmatchedNames.Count, StringFormat='Not matched ({0})'}"/>
+                                            <ItemsControl Style="{StaticResource ItemsControl.FileUnmatched}"
+                                                          ItemsSource="{Binding UnmatchedNames}"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
                 </DockPanel>
             </Grid>
         </Border>

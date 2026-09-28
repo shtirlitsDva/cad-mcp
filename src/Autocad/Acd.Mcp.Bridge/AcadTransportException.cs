@@ -1,9 +1,10 @@
+using ModelContextProtocol;
+
 namespace Acd.Mcp.Bridge
 {
-    // Transport-level failure taxonomy. The bridge surfaces these to the
-    // MCP tool wrappers so they can map to stable error_code strings the
-    // agent's skill can branch on (see docs/design/lifecycle-and-discovery-v2.md
-    // and the matching <error-codes> section of the skill docs).
+    // Transport-level failure taxonomy. Each maps to a stable error code that
+    // the agent sees in the isError text as "[ERROR_CODE] detail" (see
+    // docs/design/lifecycle-and-discovery-v2.md).
     //
     // NOT to be confused with AcadRpcException — that one carries a reply
     // the plugin sent (protocol-level failure). AcadTransportException
@@ -35,16 +36,30 @@ namespace Acd.Mcp.Bridge
         // The pipe accepted a connection, but the read/write that
         // followed failed (server closed mid-stream, etc.).
         PipeBroken,
+
+        // A reply arrived, but the bridge cannot read it: not JSON, a frame
+        // over the size limit, or a result of the wrong shape. Usually a
+        // bridge / plugin version mismatch. Not retried: the same reply
+        // comes again.
+        BadReply,
     }
 
-    public sealed class AcadTransportException : Exception
+    // An McpException, so a tool that lets it escape becomes an isError
+    // result carrying Message — "[ERROR_CODE] detail", the form the skills
+    // branch on. (Any other exception type reaches the client as a generic
+    // "An error occurred invoking ..." with the message removed.)
+    public sealed class AcadTransportException : McpException
     {
         public AcadTransportFailure Reason { get; }
 
-        // Stable error_code string for tool envelopes. Mirrors Reason
-        // 1:1 but is the public name agents see — keep it stable across
-        // refactors of the enum.
-        public string ErrorCode => Reason switch
+        // The message without the error-code prefix.
+        public string Detail { get; }
+
+        // Stable error code string agents see. Mirrors Reason 1:1 — keep it
+        // stable across refactors of the enum.
+        public string ErrorCode => CodeOf(Reason);
+
+        private static string CodeOf(AcadTransportFailure reason) => reason switch
         {
             AcadTransportFailure.NoAutoCadFound        => "NO_AUTOCAD_FOUND",
             AcadTransportFailure.AmbiguousAutoCads     => "AMBIGUOUS_AUTOCADS",
@@ -52,13 +67,15 @@ namespace Acd.Mcp.Bridge
             AcadTransportFailure.PinnedPidGone         => "PINNED_PID_GONE",
             AcadTransportFailure.PipeNotListening      => "PIPE_NOT_LISTENING",
             AcadTransportFailure.PipeBroken            => "PIPE_BROKEN",
+            AcadTransportFailure.BadReply              => "BAD_REPLY",
             _ => "UNKNOWN_TRANSPORT_ERROR",
         };
 
         public AcadTransportException(AcadTransportFailure reason, string message, Exception? inner = null)
-            : base(message, inner)
+            : base($"[{CodeOf(reason)}] {message}", inner)
         {
             Reason = reason;
+            Detail = message;
         }
     }
 }

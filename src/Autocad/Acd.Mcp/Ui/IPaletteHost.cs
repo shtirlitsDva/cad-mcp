@@ -1,4 +1,6 @@
+using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Acd.Mcp.Batch.Runtime;
 
 namespace Acd.Mcp.Ui
@@ -34,5 +36,11 @@ namespace Acd.Mcp.Ui
         // calls so the user sees the staged proposal immediately even
         // if they never opened the palette themselves.
         void EnsureVisible(CancellationToken ct = default);
+
+        // Opens the palette on the BATCH tab, then runs `work` against the batch
+        // view-model on the main thread and returns its result. Safe to
+        // call from any thread. Throws TimeoutException when the main
+        // thread stays busy (see MainThread.RunAsync); `work` then never runs.
+        Task<T> OnBatchPaletteAsync<T>(Func<IBatchUiState, T> work, CancellationToken ct = default);
     }
 }

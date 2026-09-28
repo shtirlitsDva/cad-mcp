@@ -42,7 +42,7 @@ namespace Acd.Mcp.Bridge
             var response = await SendAsync("execute", new { code, timeout_ms = timeoutMs }, pid, ct)
                 .ConfigureAwait(false);
 
-            return DecodeResult<ExecuteResult>(response)
+            return DecodeResult<ExecuteResult>(response, "execute")
                 ?? throw new AcadTransportException(
                     AcadTransportFailure.PipeBroken,
                     "Server returned an empty execute result.");
@@ -54,22 +54,10 @@ namespace Acd.Mcp.Bridge
         public async Task<T> CallAsync<T>(string method, object? @params, int? pid = null, CancellationToken ct = default)
         {
             var response = await SendAsync(method, @params, pid, ct).ConfigureAwait(false);
-            return DecodeResult<T>(response)
+            return DecodeResult<T>(response, method)
                 ?? throw new AcadTransportException(
                     AcadTransportFailure.PipeBroken,
                     $"Server returned an empty result for '{method}'.");
-        }
-
-        // Raw call — returns the JsonElement result for callers that want
-        // to format their own response (MCP resources returning JSON text).
-        public async Task<JsonElement> CallRawAsync(string method, object? @params, int? pid = null, CancellationToken ct = default)
-        {
-            var response = await SendAsync(method, @params, pid, ct).ConfigureAwait(false);
-            if (response.Error is { } err) throw new AcadRpcException(err.Code, err.Message);
-            if (response.Result is JsonElement el) return el;
-            throw new AcadTransportException(
-                AcadTransportFailure.PipeBroken,
-                "Unexpected response shape (no result, no error).");
         }
 
         // Retry loop: re-resolve PID per attempt (so the user typing
@@ -148,6 +136,12 @@ namespace Acd.Mcp.Bridge
                             $"Pipe '{pipe.PipeName}' broke mid-call: {ex.Message}", ex);
                         continue;
                     }
+                    catch (Exception ex) when (ex is JsonException or InvalidDataException)
+                    {
+                        throw new AcadTransportException(
+                            AcadTransportFailure.BadReply,
+                            $"Pipe '{pipe.PipeName}' sent a reply to '{method}' that is not a readable frame: {ex.Message}", ex);
+                    }
                 }
             }
 
@@ -160,13 +154,24 @@ namespace Acd.Mcp.Bridge
             ex.Reason is AcadTransportFailure.PipeNotListening
                       or AcadTransportFailure.PipeBroken;
 
-        private static T? DecodeResult<T>(JsonRpcResponse response)
+        private static T? DecodeResult<T>(JsonRpcResponse response, string method)
         {
             if (response.Error is { } err)
                 throw new AcadRpcException(err.Code, err.Message);
 
             if (response.Result is JsonElement el)
-                return el.Deserialize<T>(FrameIO.JsonOptions);
+            {
+                try
+                {
+                    return el.Deserialize<T>(FrameIO.JsonOptions);
+                }
+                catch (JsonException ex)
+                {
+                    throw new AcadTransportException(
+                        AcadTransportFailure.BadReply,
+                        $"The result of '{method}' does not have the shape of {typeof(T).Name}: {ex.Message}", ex);
+                }
+            }
 
             throw new AcadTransportException(
                 AcadTransportFailure.PipeBroken,
@@ -176,9 +181,27 @@ namespace Acd.Mcp.Bridge
 
     // Transport / protocol errors only. Snippet compile/runtime errors travel
     // inside ExecuteResult (Success=false) and do NOT throw.
-    public sealed class AcadRpcException : Exception
+    // An McpException, so the plugin's reply reaches the agent as the isError
+    // result text, in the same "[ERROR_CODE] detail" form as a transport failure.
+    public sealed class AcadRpcException : ModelContextProtocol.McpException
     {
+        // The JSON-RPC error code the plugin sent.
         public int Code { get; }
-        public AcadRpcException(int code, string message) : base(message) { Code = code; }
+
+        // The plugin's message without the error-code prefix.
+        public string Detail { get; }
+
+        private static string CodeOf(int code) => code switch
+        {
+            ErrorCodes.MethodNotFound => "METHOD_NOT_FOUND",
+            ErrorCodes.InvalidParams  => "INVALID_PARAMS",
+            _ => "PLUGIN_ERROR",
+        };
+
+        public AcadRpcException(int code, string message) : base($"[{CodeOf(code)}] {message}")
+        {
+            Code = code;
+            Detail = message;
+        }
     }
 }

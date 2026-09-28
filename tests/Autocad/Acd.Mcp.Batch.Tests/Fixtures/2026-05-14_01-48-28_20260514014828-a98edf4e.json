@@ -1,0 +1,168 @@
+{
+  "RunId": "20260514014828-a98edf4e",
+  "StartedAt": "2026-05-14T01:48:28.8637525+02:00",
+  "CompletedAt": "2026-05-14T01:48:28.9294111+02:00",
+  "RequestedMode": "Live",
+  "Files": [
+    "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\001_SHT.dwg",
+    "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\002_SHT.dwg",
+    "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\003_SHT.dwg",
+    "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\004_SHT.dwg",
+    "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\005_SHT.dwg"
+  ],
+  "Results": [
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\001_SHT.dwg",
+      "Phase": "Test",
+      "Status": "Pass",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ElapsedMs": 9
+    },
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\002_SHT.dwg",
+      "Phase": "Test",
+      "Status": "Pass",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ElapsedMs": 6
+    },
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\003_SHT.dwg",
+      "Phase": "Test",
+      "Status": "Pass",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ElapsedMs": 6
+    },
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\004_SHT.dwg",
+      "Phase": "Test",
+      "Status": "Pass",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ElapsedMs": 6
+    },
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\005_SHT.dwg",
+      "Phase": "Test",
+      "Status": "Pass",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ElapsedMs": 11
+    },
+    {
+      "Path": "X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\44 Tysk ler\\01 Enercity og afl\u00F8b\\batch\\001_SHT.dwg",
+      "Phase": "Live",
+      "Status": "Failure",
+      "Steps": [
+        {
+          "Kind": "Pass",
+          "Name": "draw-homer",
+          "Requirements": [
+            {
+              "Name": "has-modelspace",
+              "Passed": true
+            },
+            {
+              "Name": "has-layer-table",
+              "Passed": true
+            }
+          ],
+          "Summary": "drew 23 entities at (0,0) scale=100"
+        }
+      ],
+      "Committed": false,
+      "Cancelled": false,
+      "ErrorType": "Autodesk.AutoCAD.Runtime.Exception",
+      "ErrorMessage": "eFilerError",
+      "ElapsedMs": 6
+    }
+  ],
+  "Cancelled": false
+}

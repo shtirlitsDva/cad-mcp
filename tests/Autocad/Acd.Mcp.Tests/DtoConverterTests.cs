@@ -46,7 +46,7 @@ namespace Acd.Mcp.Tests
             var registry = new DtoRegistry();
             registry.Register<FakeCircle>(
                 c => new { radius = c.Radius, layer = c.Layer },
-                source: "test");
+                DtoLayer.System, source: "test");
 
             var options = AcadDtoOptions.Build(registry);
             var value = new FakeCircle { Radius = 5.0, Layer = "wall" };
@@ -114,7 +114,7 @@ namespace Acd.Mcp.Tests
             var registry = new DtoRegistry();
             registry.Register<FakeCircle>(
                 c => new { radius = c.Radius },
-                source: "test");
+                DtoLayer.System, source: "test");
             var options = AcadDtoOptions.Build(registry);
 
             var list = new System.Collections.Generic.List<FakeCircle>
@@ -134,7 +134,7 @@ namespace Acd.Mcp.Tests
             var trigger = new TestReloadTrigger(() =>
                 registry.Register<FakeCircle>(
                     c => new { radius = c.Radius },
-                    source: "test-reload"));
+                    DtoLayer.System, source: "test-reload"));
             var options = AcadDtoOptions.Build(registry, trigger);
 
             var value = new FakeCircle { Radius = 9.0 };
@@ -151,7 +151,7 @@ namespace Acd.Mcp.Tests
             var registry = new DtoRegistry();
             registry.Register<FakeCircle>(
                 c => new { ColorIndex = 7, StartAngle = 0.5 },
-                source: "test");
+                DtoLayer.System, source: "test");
             var options = AcadDtoOptions.Build(registry);
 
             var json = JsonSerializer.Serialize(

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Globalization;
 using ModelContextProtocol.Server;
 
 namespace Acd.Mcp.Bridge.Tools
@@ -10,15 +9,12 @@ namespace Acd.Mcp.Bridge.Tools
     //
     // This is the "push" channel the user reaches for when they want
     // the LLM to look at a specific entity without having to LIST it
-    // and paste the handle into the chat. The user selects the entity
-    // in AutoCAD, then asks the agent — the agent calls this tool and
-    // gets every handle the user picked.
+    // and paste the handle into the chat.
     //
-    // Annotation matrix per the spec's <agent-tool-surface>:
+    // Annotations:
     //   ReadOnly    = true   (queries live drawing state; no mutation)
-    //   Destructive = false
     //   Idempotent  = true   (pure read; same pickset => same output)
-    //   OpenWorld   = true   (drawing state is part of the open world)
+    //   OpenWorld   = false  (the drawing is the server's own domain)
     [McpServerToolType]
     public sealed class GetSelectionTool
     {
@@ -34,70 +30,34 @@ namespace Acd.Mcp.Bridge.Tools
             ReadOnly = true,
             Destructive = false,
             Idempotent = true,
-            OpenWorld = true),
+            OpenWorld = false,
+            UseStructuredContent = true),
          Description(
             "Return the active drawing's pickfirst selection (entities the user has selected/highlighted " +
-            "in AutoCAD) plus the drawing's filename and full path. Shape: " +
-            "{ document_name, document_path, count, entities: [{ handle, object_class, layer, block_name? }] }. " +
-            "object_class is the .NET type name (e.g. Polyline, BlockReference); block_name is populated " +
-            "only for BlockReference entities (the user-visible name for dynamic blocks, the BTR name " +
-            "otherwise); document_path is null for unsaved drawings. count=0 with empty entities[] when " +
-            "nothing is selected — not an error. Errors: error_message starting with NO_ACTIVE_DOCUMENT " +
-            "when no drawing is open. " +
-            "Call this when the user says 'look at the selected entity' or similar — much faster than " +
-            "asking them to LIST and paste the handle.")]
-        public async Task<GetSelectionResult> GetSelectionAsync(
+            "in AutoCAD) plus the drawing's filename and full path. object_class is the .NET type name " +
+            "(e.g. Polyline, BlockReference); block_name is set only for BlockReference entities (the " +
+            "user-visible name for dynamic blocks, the BTR name otherwise); document_path is absent for " +
+            "unsaved drawings. count=0 with empty entities when nothing is selected. No open drawing is " +
+            "an error result that contains NO_ACTIVE_DOCUMENT. Call this when the user says 'look at the " +
+            "selected entity' or similar — much faster than asking them to LIST and paste the handle.")]
+        public Task<GetSelectionResult> GetSelectionAsync(
             [Description("Optional AutoCAD process id to target. Omit when one instance has the plugin; pass it to pick one when several instances each have Acd.Mcp loaded.")]
             int? pid = null,
-            CancellationToken ct = default)
-        {
-            try
-            {
-                var p = await _client.CallAsync<GetSelectionPayload>("script.getSelection",
-                    null, pid, ct).ConfigureAwait(false);
-                return new GetSelectionResult(
-                    ok: true, error_code: null, error_message: null,
-                    p.document_name, p.document_path, p.count, p.entities);
-            }
-            catch (AcadRpcException ex)
-            {
-                return new GetSelectionResult(
-                    ok: false,
-                    error_code: ex.Code.ToString(CultureInfo.InvariantCulture),
-                    error_message: ex.Message,
-                    document_name: null, document_path: null, count: null, entities: null);
-            }
-            catch (AcadTransportException ex)
-            {
-                return new GetSelectionResult(
-                    ok: false,
-                    error_code: ex.ErrorCode,
-                    error_message: ex.Message,
-                    document_name: null, document_path: null, count: null, entities: null);
-            }
-        }
+            CancellationToken ct = default) =>
+            _client.CallAsync<GetSelectionResult>("script.getSelection", null, pid, ct);
     }
 
-    // Plugin wire shape for script.getSelection. Bridge wraps this in
-    // GetSelectionResult on the success path.
-    internal sealed record GetSelectionPayload(
-        string document_name,
-        string? document_path,
-        int count,
-        SelectedEntity[] entities);
-
+    // Nullable members have defaults so the outputSchema does not require
+    // them: a null member is left out on the wire.
     public sealed record SelectedEntity(
         string handle,
         string object_class,
         string layer,
-        string? block_name);
+        string? block_name = null);
 
     public sealed record GetSelectionResult(
-        bool ok,
-        string? error_code,
-        string? error_message,
-        string? document_name,
-        string? document_path,
-        int? count,
-        SelectedEntity[]? entities);
+        string document_name,
+        int count,
+        SelectedEntity[] entities,
+        string? document_path = null);
 }

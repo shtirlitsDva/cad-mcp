@@ -13,21 +13,10 @@ namespace Acd.Mcp.Bridge.Tools
     // The user's actual Yes/No is NOT reported here — it can't be: the
     // dialog is async to the RPC.
     //
-    // Nullable so System.Text.Json's WhenWritingDefault on the MCP
-    // server's side doesn't silently drop the `false` case. See G3 in
-    // the v2 crash-test journal.
-    //
-    // `error_code` + `error_message` are populated only on the failure
-    // path (ok=false). The MCP SDK strips thrown McpException messages
-    // into a generic invocation-error string at the client; carrying
-    // the plugin-side message on the success path sidesteps that. See
-    // G4 in the v2 crash-test journal. `saved_as` and `name` are
-    // nullable so the failure return can leave them unset.
+    // A failure is an isError result (AcadRpcException / AcadTransportException
+    // are McpExceptions), so this shape describes success only.
     public sealed record ProposeScriptResult(
-        bool ok,
-        string? error_code,
-        string? error_message,
-        string? saved_as,
-        string? name,
-        bool? replaced_dirty);
+        string saved_as,
+        string name,
+        bool replaced_dirty);
 }

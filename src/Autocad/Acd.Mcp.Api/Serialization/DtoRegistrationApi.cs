@@ -15,9 +15,10 @@ namespace Acd.Mcp.Serialization
     // pair backing DtoDataProviderApi) are constructor-injected so this
     // class stays a thin façade.
     //
-    // Each .csx file gets its own DtoRegistrationApi instance because the
-    // Source tag carries the file's name into the registry — useful when
-    // diagnosing "which file registered Circle?".
+    // Each .csx file gets its own DtoRegistrationApi instance because its
+    // layer (system or user folder) decides the override, and the Source tag
+    // carries the file's name into the registry — useful when diagnosing
+    // "which file registered Circle?".
     //
     // Lives in Acd.Mcp.Api (default ALC) so the IL emitted by Roslyn for
     // every `Acd.RegisterDto<...>(...)` call resolves to a default-ALC
@@ -27,11 +28,13 @@ namespace Acd.Mcp.Serialization
     public sealed class DtoRegistrationApi
     {
         private readonly DtoRegistry _registry;
+        private readonly DtoLayer _layer;
         private readonly string _source;
 
-        public DtoRegistrationApi(DtoRegistry registry, DtoDataProviderApi dataProvider, string source)
+        public DtoRegistrationApi(DtoRegistry registry, DtoDataProviderApi dataProvider, DtoLayer layer, string source)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _layer = layer;
             DataProvider = dataProvider ?? throw new ArgumentNullException(nameof(dataProvider));
             _source = source ?? throw new ArgumentNullException(nameof(source));
         }
@@ -39,7 +42,7 @@ namespace Acd.Mcp.Serialization
         public void RegisterDto<T>(Func<T, object?> projection)
         {
             if (projection is null) throw new ArgumentNullException(nameof(projection));
-            _registry.Register(projection, _source);
+            _registry.Register(projection, _layer, _source);
         }
 
         public DtoDataProviderApi DataProvider { get; }

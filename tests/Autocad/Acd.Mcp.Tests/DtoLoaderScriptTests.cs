@@ -24,23 +24,25 @@ namespace Acd.Mcp.Tests
         public sealed class FakeRegistrationGlobals
         {
             public FakeRegistration Acd { get; }
-            public FakeRegistrationGlobals(DtoRegistry registry, string source)
+            public FakeRegistrationGlobals(DtoRegistry registry, string source, DtoLayer layer = DtoLayer.System)
             {
-                Acd = new FakeRegistration(registry, source);
+                Acd = new FakeRegistration(registry, layer, source);
             }
         }
 
         public sealed class FakeRegistration
         {
             private readonly DtoRegistry _registry;
+            private readonly DtoLayer _layer;
             private readonly string _source;
-            public FakeRegistration(DtoRegistry registry, string source)
+            public FakeRegistration(DtoRegistry registry, DtoLayer layer, string source)
             {
                 _registry = registry;
+                _layer = layer;
                 _source = source;
             }
             public void RegisterDto<T>(Func<T, object?> projection)
-                => _registry.Register(projection, _source);
+                => _registry.Register(projection, _layer, _source);
         }
 
         public sealed class Widget
@@ -87,26 +89,29 @@ namespace Acd.Mcp.Tests
         }
 
         [Fact]
-        public async System.Threading.Tasks.Task Two_scripts_overwrite_in_registration_order()
+        // The user script runs FIRST, as in a Refresh that recompiles only a
+        // changed system file. The user DTO must still win.
+        public async System.Threading.Tasks.Task User_script_wins_over_a_later_system_script()
         {
             var registry = new DtoRegistry();
-            var systemGlobals = new FakeRegistrationGlobals(registry, "system:Widget.csx");
-            var userGlobals = new FakeRegistrationGlobals(registry, "user:Widget.csx");
+            var userGlobals = new FakeRegistrationGlobals(registry, "user:widget.csx", DtoLayer.User);
+            var systemGlobals = new FakeRegistrationGlobals(registry, "system:widget.csx", DtoLayer.System);
 
             var options = ScriptOptions.Default
                 .WithReferences(typeof(Widget).Assembly, typeof(DtoRegistry).Assembly)
                 .WithImports("System", "Acd.Mcp.Tests");
 
             await CSharpScript.RunAsync(
-                @"Acd.RegisterDto<DtoLoaderScriptTests.Widget>(w => ""system"");",
-                options, systemGlobals, typeof(FakeRegistrationGlobals));
-
-            await CSharpScript.RunAsync(
                 @"Acd.RegisterDto<DtoLoaderScriptTests.Widget>(w => ""user"");",
                 options, userGlobals, typeof(FakeRegistrationGlobals));
 
+            await CSharpScript.RunAsync(
+                @"Acd.RegisterDto<DtoLoaderScriptTests.Widget>(w => ""system"");",
+                options, systemGlobals, typeof(FakeRegistrationGlobals));
+
             Assert.Single(registry.RegisteredTypes);
-            Assert.Contains(typeof(Widget), registry.RegisteredTypes);
+            Assert.True(registry.TryGet(typeof(Widget), out var projection));
+            Assert.Equal("user", projection.Project(new Widget()));
         }
     }
 }

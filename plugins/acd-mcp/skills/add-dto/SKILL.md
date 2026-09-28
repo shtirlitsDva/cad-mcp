@@ -1,84 +1,27 @@
 ---
 name: add-dto
-description: Author or override a DTO that teaches the ACD-MCP serializer how to project an AutoCAD entity type to JSON. Triggers when the MCP returns {"$unsupported":"<type>"}, when a default DTO's shape is insufficient, or when the user asks "add a DTO for X".
+description: Write or override a DTO — the small .csx file that tells the ACD-MCP serializer which fields of an AutoCAD / Civil 3D type go into the JSON of a script result. Use it whenever a result contains {"$unsupported":"<type>"} (with or without a "reason"), when a shipped DTO leaves out fields the user needs, when the user asks to "add a DTO" or "make X serialize", or when the same type keeps coming back as a hand-written anonymous object.
 ---
 
-<purpose>
-The ACD-MCP serializer projects each AutoCAD entity to JSON through a DTO file. A DTO is a one-file C# script that calls `Acd.RegisterDto<T>(t => new { ... })` to declare the JSON shape. Without a DTO, the serializer emits the marker `{"$unsupported":"FullTypeName"}` so the agent (you) knows it must author one.
+<what-a-dto-is>
+Every value an `autocad_script_execute` snippet returns goes through the DTO registry. A DTO is one C# script file that calls `Acd.RegisterDto<T>(t => new { ... })`. The anonymous object is the JSON shape of `T`. An `Autodesk.*` type without a DTO comes back as `{"$unsupported":"FullTypeName"}`.
 
-This skill walks you through writing a correct DTO. The rules are non-negotiable — getting them wrong silently produces invalid JSON or overwrites user customisation.
-</purpose>
+A good DTO is worth the effort: every later query of that type gets the same, complete shape for free, so you and the user stop writing one-off projections.
+</what-a-dto-is>
 
 <where-dtos-live>
-Two folders. The split exists so a future plugin update can refresh the shipped DTO set without ever clobbering user authoring.
+| Folder | Owner | Rule |
+|---|---|---|
+| `%LOCALAPPDATA%\Acd.Mcp\dto-system\` | the plugin | Replaced on every install. Do not edit: your change is lost at the next install. |
+| `%APPDATA%\Acd.Mcp\dto-user\` | the user (and you) | The plugin never writes here. Put all new DTOs and overrides here. |
 
-- **System folder** — `%LOCALAPPDATA%\Acd.Mcp\dto-system\`
-  Plugin-owned. Wiped and repopulated on every plugin install. **Never edit these.** Your changes will be lost. To override a system DTO, create a same-typed file in the user folder instead.
-
-- **User folder** — `%APPDATA%\Acd.Mcp\dto-user\`
-  Your folder. Plugin never touches it. A same-typed DTO here overrides whatever the system folder ships. **All new authoring goes here.**
-
-Resolution order at serialisation time: user folder first, then system folder, then the `$unsupported` marker. So `dto-user/circle.csx` beats `dto-system/circle.csx`.
+The loader compiles the system folder first and the user folder second. A `RegisterDto<T>` in the user folder therefore replaces the system DTO for the same `T`.
 </where-dtos-live>
 
-<one-type-per-file>
-**Filename matches the type's short name, case preserved.** Examples:
-- `Autodesk.AutoCAD.DatabaseServices.Circle` → `Circle.csx`
-- `Autodesk.AutoCAD.DatabaseServices.BlockReference` → `BlockReference.csx`
-- `Autodesk.AutoCAD.Geometry.Point3d` → `Point3d.csx`
-
-**Case matters.** `Point3d` and `Point3D` are different types in different namespaces; the loader does case-sensitive type name resolution. On Windows NTFS, filenames are case-insensitive at the filesystem level — so when two short names collide only by case (e.g. `Point3d` vs `Point3D`), use the fully-qualified type name as the filename:
-- `Autodesk.AutoCAD.Geometry.Point3d.csx`
-- `System.Windows.Media.Media3D.Point3D.csx`
-
-**One `RegisterDto<T>` call per file.** Do not write an `entities.csx` that registers ten types. Per-file granularity is what lets a user override a single type via the user folder. Multiple registrations in one file break that contract.
-
-**Header is mandatory.** First non-blank line of the file:
-
-```
-// @dto: Autodesk.AutoCAD.DatabaseServices.Circle
-```
-
-The header is for diagnostics — when compilation fails, the loader logs "compile error in <file> targeting <header type>" so the failure is easy to triage. The body's `RegisterDto<T>` is what actually registers; do not rely on the header doing anything functional.
-</one-type-per-file>
-
-<verify-do-not-guess>
-**GUESSING IS FORBIDDEN.** Before referencing any property of an AutoCAD type, confirm the property exists with the exact spelling.
-
-**Compile errors are surfaced to you, not eaten.** When a DTO file fails to compile, the serializer emits an extended `$unsupported` marker with the diagnostic inline:
-
-```json
-{
-  "$unsupported": "Autodesk.AutoCAD.DatabaseServices.Circle",
-  "reason": "compile error in user/Circle.csx (12,8): CS1061: 'Circle' does not contain a definition for 'CentreOfMass'"
-}
-```
-
-When you see a `reason` field, you have the exact line, column, and error code — fix it and retry. You can also read `acd-mcp://dto-system/diagnostics` at any time for the live list of every currently-failing DTO file.
-
-Three acceptable verification paths:
-
-1. **Probe the live type via the MCP.** Run inside `autocad_script_execute`:
-
-   ```csharp
-   typeof(Circle).GetProperties().Select(p => p.Name).ToList()
-   ```
-
-   Returns the actual property list. Authoritative.
-
-2. **Examine an instance.** If you have a representative object:
-
-   ```csharp
-   var c = ...; c.GetType().GetProperties().Select(p => p.Name).ToList()
-   ```
-
-3. **Read official Autodesk API docs.** Context7 has the AutoCAD .NET API documented. Search "AutoCAD Managed API <ClassName>".
-
-Never write a DTO referencing a property you have not verified. The user has caught this anti-pattern in the past and called it out specifically.
-</verify-do-not-guess>
-
-<the-projection>
-The projection is a `Func<T, object?>` — it takes the typed value and returns an anonymous object whose shape becomes the JSON. Names in the projection are snake_case (or Pascal, transformed automatically by the serializer). Example:
+<file-rules>
+- **One `RegisterDto<T>` per file.** An override replaces a type, not a file; one type per file lets the user override or delete one type without touching others.
+- **Name the file after the type, in lowercase**, like the shipped files: `circle.csx`, `rotateddimension.csx`. The loader reads every `*.csx` and does not use the name; the name is for people.
+- **Start the file with the header** `// @dto: <full type name>`. When the file does not compile, the loader uses the header to link the error to the type, so the `$unsupported` marker for that type carries the `reason`. Without the header, you only see the error in `acd-mcp://dto-system/diagnostics`.
 
 ```csharp
 // @dto: Autodesk.AutoCAD.DatabaseServices.Circle
@@ -92,87 +35,46 @@ Acd.RegisterDto<Circle>(c => new
     color_index = c.Color.ColorIndex,
 });
 ```
+</file-rules>
 
-**Reduce AutoCAD types to primitives at the leaf** — `c.Color.ColorIndex` (a `short`) rather than `c.Color` (an `Autodesk.AutoCAD.Colors.Color` object that has its own representation concerns). Each AutoCAD type the projection emits has to itself have a DTO; the closer you stay to primitives at the leaves, the fewer DTOs you transitively need.
+<verify-properties-first>
+Verify every property before you put it in a DTO. A wrong name makes the file fail to compile, the type stays `$unsupported`, and the user sees no change. The user has found invented property names before, so do not skip this.
 
-**Geometry primitives are already covered.** `Point2d`, `Point3d`, `Vector2d`, `Vector3d`, `Extents2d`, `Extents3d`, `ObjectId`, `Handle` — these ship in the system folder. Just include the property; the serializer will project it correctly.
+In order of preference:
+1. Probe the live type: `autocad_script_execute("typeof(RotatedDimension).GetProperties().Select(p => $\"{p.Name}: {p.PropertyType.Name}\").ToList()")`.
+2. Inspect an instance you already have: `obj.GetType().GetProperties()...`.
+3. Read the Autodesk .NET API docs (Context7, or a web search for the exact class name).
+</verify-properties-first>
 
-**Common entities already ship too — don't re-author them.** The system folder ships DTOs for `Arc`, `AttributeReference`, `BlockReference`, `Circle`, `DBPoint`, `DBText`, `Hatch`, `Line`, `MText`, `Polyline`, `Polyline3d`, `PolylineVertex3d`, and `Vertex2d`. Returning one of these from a script already produces a rich projection — you only author a DTO here for a type **not** on that list, or when a shipped DTO's shape is too thin (then *override* via the user folder, see `<override-pattern>` — never start from scratch and never edit `dto-system/`).
-</the-projection>
+<writing-the-projection>
+- **Reduce AutoCAD types to primitives at the leaf.** Write `c.Color.ColorIndex` (a `short`), not `c.Color`. Each AutoCAD type in the projection needs its own DTO, so primitives keep the DTO self-contained.
+- **Geometry and ids are already covered.** `Point2d`, `Point3d`, `Vector2d`, `Vector3d`, `Extents2d`, `Extents3d`, `ObjectId`, `Handle` ship in the system folder. Use the property as it is.
+- **Do not re-write shipped entity DTOs.** `Arc`, `AttributeReference`, `BlockReference`, `Circle`, `DBPoint`, `DBText`, `Hatch`, `Line`, `MText`, `Polyline`, `Polyline3d`, `PolylineVertex3d`, `Vertex2d` ship already. When one is too thin, override it (`<override-a-shipped-dto>`).
+- **Names are snake_case.** The serializer converts PascalCase (`ColorIndex` → `color_index`), so either style gives the same JSON. Use the same names as the shipped DTOs for the same idea (`layer`, `color_index`), so follow-up queries work across types.
+- **Metadata goes through the data provider:** `attributes = Acd.DataProvider.ReadAll(br)`. It returns the union of block attributes and, on Civil 3D / Map / MEP, AECC property sets (XData is not included). A hand-written reader sees only one of these, and users keep the same data in different places. It opens its own short transaction when needed, so it works after the snippet's transaction has closed.
+</writing-the-projection>
 
-<entity-metadata>
-For entity-attached metadata (block attributes, PropertySets on Civil 3D), use the data provider — never read one mechanism directly:
+<test-it>
+A DTO is done only when a real value comes back in the new shape.
 
-```csharp
-attributes = Acd.DataProvider.ReadAll(br)
-```
+1. Save the file in `dto-user\`. No restart and no registration step: the serializer reads the folders again on the next unknown type (at most every 500 ms).
+2. Run a snippet that returns a value of the type. Check `return_value_json`.
+3. Still `$unsupported`? Read its `reason`, e.g. `compile error in user:rotateddimension.csx (12,8): CS1061: ...`, or read `acd-mcp://dto-system/diagnostics` for every DTO file that does not compile. Fix and repeat.
+</test-it>
 
-Why: a user who stores `PartNumber` in block attributes vs PropertySets vs XData should get the same DTO output. Reading one mechanism by hand misses the others. The composite data provider checks every registered mechanism and returns the union.
+<override-a-shipped-dto>
+1. Copy `%LOCALAPPDATA%\Acd.Mcp\dto-system\<type>.csx` to `%APPDATA%\Acd.Mcp\dto-user\<type>.csx`.
+2. Change the copy. The user-folder DTO wins.
+3. Test it as above.
 
-`Acd.DataProvider.ReadAll(entity)` returns `IReadOnlyDictionary<string, string>`. `Acd.DataProvider.TryRead(entity, key)` returns a single value or null. Both use the entity's active top transaction when one is open, and otherwise open a short-lived transaction just for the read. So a DTO serialises correctly whether or not your script's own transaction is still open — the standard block-form `using` closes your transaction *before* the return value is serialised, and the data provider handles that for you.
+Starting from the shipped file keeps the fields that other queries already use.
+</override-a-shipped-dto>
 
-**What the composite contains depends on the vertical:**
+<example>
+A result contains `{"$unsupported":"Autodesk.AutoCAD.DatabaseServices.RotatedDimension"}`.
 
-* On vanilla AutoCAD — block attributes only (block references are the only entities the BlockAttributeProvider can read).
-* On Civil 3D / Map / MEP — block attributes **plus** AECC PropertySets, when the AECC managed assemblies are loaded (`AecPropDataMgd` on 2025+; `AecBaseMgd` on older verticals).
-* XData is intentionally **not** in the composite. The provider is wired but throws on use — track the open issue rather than reading it by hand.
-
-`Acd.DataProvider` is reachable identically from REPL submissions and from DTO `.csx` bodies. Same call shape, same return type.
-</entity-metadata>
-
-<test-after-writing>
-After authoring a DTO, immediately probe it via the MCP. Two checks:
-
-1. **Round-trip a sample value.** Run a script that returns an instance of the type. Verify the JSON shape in the response's `returnValueJson`.
-
-2. **Run the type-listing probe again** to confirm no diagnostics — if the file failed to compile, the registry won't have your type registered and the serializer will still emit `$unsupported`. The `Trace.WriteLine` log (in the plugin's SafeBoundary log file) names the failed file with the compile error.
-
-A DTO that has not been round-trip tested is not done.
-</test-after-writing>
-
-<naming>
-JSON property names: lowercase, snake_case for multi-word concepts.
-
-- `center`, `radius`, `normal` — good
-- `color_index`, `start_angle`, `pattern_name` — good
-- `colorIndex`, `Color`, `startAngle` — bad
-
-The serializer applies `JsonNamingPolicy.SnakeCaseLower`, so you may write Pascal names in the projection and they get transformed (`ColorIndex` → `color_index`). Either style works; mix is fine. Consistency across DTOs matters for an agent constructing follow-up queries.
-</naming>
-
-<reload-behaviour>
-The serializer rescans both folders on every cache miss (rate-limited to 500ms). After you write a new DTO file:
-
-- **No restart required.** Save the file; the next time the serializer encounters that type, it picks up your DTO.
-- **No registration step.** The file's mere presence in `dto-user/` (with a valid `Acd.RegisterDto<T>(...)` call) is the registration.
-
-If the rescan does not pick up your file, it failed to compile. The next time you ask for a value of that type the `$unsupported` marker carries a `reason` field with the diagnostic (see `<verify-do-not-guess>`). You can also read `acd-mcp://dto-system/diagnostics` directly for the live list of compile failures.
-</reload-behaviour>
-
-<override-pattern>
-To override a system DTO with a richer projection:
-
-1. Copy the system DTO's content from `%LOCALAPPDATA%\Acd.Mcp\dto-system\<file>` to `%APPDATA%\Acd.Mcp\dto-user\<same-file>`.
-2. Edit the user copy. The user-folder version wins automatically.
-3. **Never edit the system file itself.** It will be overwritten on the next plugin install.
-
-This pattern preserves user authoring across plugin updates and is the entire reason the two-folder split exists.
-</override-pattern>
-
-<example-walkthrough>
-The MCP returned `{"$unsupported":"Autodesk.AutoCAD.DatabaseServices.RotatedDimension"}`. You need to author a DTO.
-
-**Step 1 — verify properties.**
-
-```csharp
-typeof(RotatedDimension).GetProperties()
-    .Select(p => $"{p.Name}: {p.PropertyType.Name}")
-    .ToList()
-```
-
-The agent runs this in `autocad_script_execute` and reads the property list: `Measurement`, `Rotation`, `XLine1Point`, `XLine2Point`, `DimLinePoint`, `Layer`, `Color`, …
-
-**Step 2 — write the DTO** at `%APPDATA%\Acd.Mcp\dto-user\rotateddimension.csx`:
+1. Probe the properties (see `<verify-properties-first>`). The list shows `Measurement`, `Rotation`, `XLine1Point`, `XLine2Point`, `DimLinePoint`, `Layer`, `Color`, …
+2. Write `%APPDATA%\Acd.Mcp\dto-user\rotateddimension.csx`:
 
 ```csharp
 // @dto: Autodesk.AutoCAD.DatabaseServices.RotatedDimension
@@ -189,13 +91,5 @@ Acd.RegisterDto<RotatedDimension>(d => new
 });
 ```
 
-**Step 3 — test.** Run a script that returns a RotatedDimension instance. The `returnValueJson` should now show the projected shape. Done.
-</example-walkthrough>
-
-<anti-patterns>
-- **Multiple `RegisterDto` calls in one file.** Breaks per-type override. Always one type per file.
-- **Editing `dto-system/`.** Lost on next install. Override via `dto-user/`.
-- **Referencing properties without verification.** Silent failure; the file fails to compile and the type stays `$unsupported`.
-- **Reading block attributes / PropertySets manually instead of `Acd.DataProvider.ReadAll`.** Misses the cross-mechanism union and breaks for users who store metadata differently than you assumed.
-- **Including raw AutoCAD types deep in the projection** (e.g. `c.Color` instead of `c.Color.ColorIndex`). Requires that those types also have DTOs; lean toward primitives at the leaves.
-</anti-patterns>
+3. Return a `RotatedDimension` from a snippet and check the shape.
+</example>

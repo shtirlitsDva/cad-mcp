@@ -40,8 +40,8 @@ namespace Acd.Mcp.Bridge
         }
 
         // Resolve the AutoCAD PID, honoring an optional --pid preference.
-        // Throws AcadTransportException on hard failure (with a Reason
-        // the tool wrappers can map to a stable error_code).
+        // Throws AcadTransportException on hard failure; its Reason gives
+        // the error code the agent sees.
         public async Task<PidResolution> ResolveAsync(int? explicitPid, CancellationToken ct = default)
         {
             if (explicitPid is int pinned)

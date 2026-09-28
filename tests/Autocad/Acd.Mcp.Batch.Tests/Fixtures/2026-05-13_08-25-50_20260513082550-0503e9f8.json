@@ -1,0 +1,27 @@
+{
+  "RunId": "20260513082550-0503e9f8",
+  "StartedAt": "2026-05-13T08:25:50.1068929+02:00",
+  "CompletedAt": "2026-05-13T08:25:50.4949156+02:00",
+  "RequestedMode": "Test",
+  "Files": [
+    "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-01.dwg",
+    "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-02.dwg",
+    "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-03.dwg",
+    "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-04.dwg",
+    "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-05.dwg"
+  ],
+  "Results": [
+    {
+      "Path": "X:\\GitHub\\shtirlitsDva\\ACD-MCP\\crashtest-v2-dwgs\\crashtest-01.dwg",
+      "Phase": "Test",
+      "Status": "Failure",
+      "Steps": [],
+      "Committed": false,
+      "Cancelled": false,
+      "ErrorType": "System.InvalidCastException",
+      "ErrorMessage": "[A]Acd.Mcp.Batch.Runtime.AcadBatchGlobals cannot be cast to [B]Acd.Mcp.Batch.Runtime.AcadBatchGlobals. Type A originates from \u0027Acd.Mcp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null\u0027 in the context \u0027\u0022PluginIsolated::Acd.Mcp.dll\u0022 DevReload.IsolatedPluginContext #3\u0027 in a byte array. Type B originates from \u0027Acd.Mcp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null\u0027 in the context \u0027\u0022\u0022 Microsoft.CodeAnalysis.Scripting.Hosting.CoreAssemblyLoaderImpl\u002BLoadContext #35\u0027 at location \u0027X:\\GitHub\\shtirlitsDva\\ACD-MCP\\src\\Acd.Mcp\\bin\\Debug\\Acd.Mcp.dll\u0027.",
+      "ElapsedMs": 18
+    }
+  ],
+  "Cancelled": false
+}

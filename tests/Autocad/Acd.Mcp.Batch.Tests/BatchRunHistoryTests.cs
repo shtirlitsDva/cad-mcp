@@ -73,10 +73,11 @@ namespace Acd.Mcp.Batch.Tests
             Assert.Equal(
                 report.Results.Select(r => r.Path),
                 roundTrip.Results.Select(r => r.Path));
-            // The failure file's step is StepOutcome.Failure with carried message.
+            // The failure file's step is a Failure record with the carried message.
             var failFile = roundTrip.Results.Single(r => r.Status == FileOutcomeStatus.Failure);
-            var failStep = Assert.IsType<StepOutcome.Failure>(failFile.Steps.Single());
-            Assert.Equal("boom", failStep.Error.Message);
+            var failStep = failFile.Steps.Single();
+            Assert.Equal(StepKind.Failure, failStep.Kind);
+            Assert.Equal("boom", failStep.ErrorMessage);
         }
 
         [Fact]
@@ -95,13 +96,13 @@ namespace Acd.Mcp.Batch.Tests
             }
 
             var page1 = history.ListRecent(limit: 2, offset: 0);
-            Assert.Equal(new[] { "run04", "run03" }, page1.Select(s => s.RunId).ToArray());
+            Assert.Equal(new[] { "run04", "run03" }, page1.Entries.Select(s => s.RunId).ToArray());
 
             var page2 = history.ListRecent(limit: 2, offset: 2);
-            Assert.Equal(new[] { "run02", "run01" }, page2.Select(s => s.RunId).ToArray());
+            Assert.Equal(new[] { "run02", "run01" }, page2.Entries.Select(s => s.RunId).ToArray());
 
             var page3 = history.ListRecent(limit: 10, offset: 4);
-            Assert.Equal(new[] { "run00" }, page3.Select(s => s.RunId).ToArray());
+            Assert.Equal(new[] { "run00" }, page3.Entries.Select(s => s.RunId).ToArray());
         }
 
         [Fact]
@@ -111,18 +112,19 @@ namespace Acd.Mcp.Batch.Tests
             history.Save(SyntheticReport("only", DateTimeOffset.Now, 1, 0));
             // Asking for a huge page returns just what exists.
             var page = history.ListRecent(limit: 10_000, offset: 0);
-            Assert.Single(page);
+            Assert.Single(page.Entries);
+            Assert.Equal(BatchRunHistory.MaxLimit, page.Limit);
         }
 
         [Fact]
-        public void LoadLastSummary_ReturnsNewest()
+        public void LoadLast_ReturnsNewest()
         {
             var history = NewHistory();
             var t = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
             history.Save(SyntheticReport("old", new DateTimeOffset(t, TimeSpan.Zero), 1, 0));
             history.Save(SyntheticReport("new", new DateTimeOffset(t.AddMinutes(5), TimeSpan.Zero), 1, 0));
 
-            var last = history.LoadLastSummary();
+            var last = history.LoadLast();
             Assert.NotNull(last);
             Assert.Equal("new", last!.RunId);
         }

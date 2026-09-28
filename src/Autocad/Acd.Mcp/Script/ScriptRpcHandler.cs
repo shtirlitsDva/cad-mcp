@@ -99,7 +99,6 @@ namespace Acd.Mcp.Script
 
             return new
             {
-                ok = true,
                 saved_as = saved.Path,
                 name = saved.Name,
                 replaced_dirty = willPromptForReplace,

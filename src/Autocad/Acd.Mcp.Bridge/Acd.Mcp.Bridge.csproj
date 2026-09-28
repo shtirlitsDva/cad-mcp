@@ -33,6 +33,13 @@
          Roslyn in would bloat the committed plugins/acd-mcp/bin payload. -->
     <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
     <ProjectReference Include="..\..\Shared\Mcp.Kernel.Bridge\Mcp.Kernel.Bridge.csproj" />
+    <!-- Acd-specific wire contracts shared with the plugin via linked compile.
+         Every file is AutoCAD-free records / enums; JSON is the actual boundary. -->
+    <Compile Include="..\Acd.Mcp\Pipe\StatusSnapshot.cs" Link="Contracts\StatusSnapshot.cs" />
+    <Compile Include="..\Acd.Mcp\Serialization\DtoDiagnosticsReport.cs" Link="Contracts\DtoDiagnosticsReport.cs" />
+    <Compile Include="..\Acd.Mcp.Batch\BatchRunRecord.cs" Link="Contracts\BatchRunRecord.cs" />
+    <Compile Include="..\Acd.Mcp.Batch\FileOutcomeStatus.cs" Link="Contracts\FileOutcomeStatus.cs" />
+    <Compile Include="..\Acd.Mcp.Contracts\BatchMode.cs" Link="Contracts\BatchMode.cs" />
   </ItemGroup>
 
   <ItemGroup>
