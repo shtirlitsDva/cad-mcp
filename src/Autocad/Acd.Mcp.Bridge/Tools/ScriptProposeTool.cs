@@ -43,7 +43,8 @@ namespace Acd.Mcp.Bridge.Tools
             "(replaced_dirty=true). Use this tool only when the user wants to review/edit a script before " +
             "running — for ad-hoc execution and information gathering, call autocad_script_execute directly " +
             "(it doesn't touch the editor). Same name overwrites the existing saved script. See the " +
-            "acd-mcp:script skill for the workflow.")]
+            "acd-mcp:script skill for the workflow. In BricsCAD every path above uses Bcad.Mcp in place " +
+            "of Acd.Mcp.")]
         public Task<ProposeScriptResult> ProposeAsync(
             [Description("Telegram-style name (lowercase, hyphenated, no filler). Used as the saved filename.")]
             string name,

@@ -1,6 +1,6 @@
 ---
 name: start
-description: Briefing for the ACD-MCP plugin — a live C# script session and a multi-file batch runner inside a running AutoCAD / Civil 3D 2025+. Use it whenever the user mentions AutoCAD, Civil 3D, a .dwg drawing, the SCRIPT or BATCH palette, `autocad_*` tools, or asks what this MCP can do, even when the request looks simple. It says which sibling skill (/acd-mcp:script or /acd-mcp:batch) to load before the first tool call, and how to bring the tools up.
+description: Briefing for the ACD-MCP plugin — a live C# script session and a multi-file batch runner inside a running AutoCAD / Civil 3D 2025+ or BricsCAD V26. Use it whenever the user mentions AutoCAD, Civil 3D, BricsCAD, a .dwg drawing, the SCRIPT or BATCH palette, `autocad_*` tools, or asks what this MCP can do, even when the request looks simple. It says which sibling skill (/acd-mcp:script or /acd-mcp:batch) to load before the first tool call, and how to bring the tools up.
 ---
 
 <what-this-plugin-is>
@@ -10,6 +10,15 @@ A stdio bridge (`Acd.Mcp.Bridge.exe`) talks over the pipe `acd-mcp-<pid>` to a p
 
 Every tool takes an optional `pid`. Pass it when `Acd.Mcp` is loaded in more than one AutoCAD; pids come from DevReload's `acad_list_instances`.
 </what-this-plugin-is>
+
+<bricscad>
+The same plugin, tools and pipe also run inside BricsCAD V26 (`bricscad.exe`); the `autocad_*` tool names stay. What differs:
+- **Namespaces.** Snippets, batch bodies and DTOs are compiled with `Bricscad.ApplicationServices`, `Bricscad.EditorInput`, `Teigha.DatabaseServices`, `Teigha.Geometry` and `Teigha.Runtime` imported in place of the `Autodesk.AutoCAD.*` ones. Code that uses the short type names (`Line`, `Point3d`, `Transaction`) runs unchanged in both hosts.
+- **`BRICSCAD` is defined.** Code that has to name a namespace or differs per host branches with `#if BRICSCAD ... #else ... #endif`.
+- **No Civil 3D.** There is no `CivilDoc` global and no `Autodesk.Civil.*` namespace; referencing them is a compile error in BricsCAD.
+- **Own storage.** Every path in `<file-locations>` uses `Bcad.Mcp` in place of `Acd.Mcp` (e.g. `%LOCALAPPDATA%\Bcad.Mcp\buffer-script.csx`). Scripts and DTOs saved in one host are not visible in the other.
+- **Verify against BricsCAD.** Probe the live type (step 1 below); the Autodesk docs describe AutoCAD, and BricsCAD's API can differ in details.
+</bricscad>
 
 <load-a-flavor-first>
 Load the flavor skill before the first tool call. Each one holds the rules that stop silent failures (auto-return, mirror-before-propose, `replaced_dirty`, the Step DSL).
@@ -58,6 +67,8 @@ Still not sure: ask the user.
 </verify-before-you-reference>
 
 <file-locations>
+AutoCAD paths; BricsCAD uses `Bcad.Mcp` in place of `Acd.Mcp`.
+
 | Purpose | Path |
 |---|---|
 | DTO system folder (plugin-owned, replaced on install) | `%LOCALAPPDATA%\Acd.Mcp\dto-system\` |

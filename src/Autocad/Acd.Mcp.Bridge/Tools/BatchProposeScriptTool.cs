@@ -27,7 +27,7 @@ namespace Acd.Mcp.Bridge.Tools
             "update against it (so you don't trample user edits). If the editor has dirty changes, the " +
             "user is prompted to confirm before your version replaces theirs (replaced_dirty=true). Same " +
             "name overwrites the existing saved script. See the acd-mcp:batch skill for the full workflow " +
-            "and script-body contract.")]
+            "and script-body contract. In BricsCAD every path above uses Bcad.Mcp in place of Acd.Mcp.")]
         public Task<ProposeScriptResult> ProposeAsync(
             [Description("Telegram-style name (lowercase, hyphenated, no filler). Used as both the saved filename and the run label.")]
             string name,

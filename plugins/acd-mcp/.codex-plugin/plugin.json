@@ -1,7 +1,7 @@
 {
   "name": "acd-mcp",
-  "version": "3.0.0",
-  "description": "Live C# script session plus multi-file batch runner inside a running AutoCAD 2025+ process. Drives a persistent CSharpScript session on AutoCAD's main thread, with DTO-driven JSON serialization for tidy LLM replies.",
+  "version": "3.1.0",
+  "description": "Live C# script session plus multi-file batch runner inside a running AutoCAD 2025+ or BricsCAD V26 process. Drives a persistent CSharpScript session on the CAD main thread, with DTO-driven JSON serialization for tidy LLM replies.",
   "author": {
     "name": "Norsyn"
   },
@@ -11,6 +11,7 @@
   "keywords": [
     "autocad",
     "civil-3d",
+    "bricscad",
     "csharp",
     "script",
     "batch",
