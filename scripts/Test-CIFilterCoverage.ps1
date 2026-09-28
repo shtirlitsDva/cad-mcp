@@ -36,10 +36,6 @@ Set-Location $repoRoot
 $ExcludedProjects = @{
     'tests\Revit\Rvt.Mcp.Tests.RequiresRevit\Rvt.Mcp.Tests.RequiresRevit.csproj' =
         'Constructs real Autodesk.Revit.DB types; RevitAPI.dll P/Invokes into native Revit DLLs that no NuGet package can supply.'
-    'src\Bricscad\Bcad.Mcp.Api\Bcad.Mcp.Api.csproj' =
-        'References BrxMgd/TD_Mgd from a BricsCAD install; Bricsys publishes no NuGet reference package.'
-    'src\Bricscad\Bcad.Mcp\Bcad.Mcp.csproj' =
-        'References BrxMgd/TD_Mgd from a BricsCAD install; Bricsys publishes no NuGet reference package.'
 }
 
 $slnProjects = [regex]::Matches(

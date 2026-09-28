@@ -34,9 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- BricsCAD provides these at runtime (Private=False = never copied). -->
-    <Reference Include="BrxMgd"><HintPath>$(BricsCADPath)\BrxMgd.dll</HintPath><Private>False</Private></Reference>
-    <Reference Include="TD_Mgd"><HintPath>$(BricsCADPath)\TD_Mgd.dll</HintPath><Private>False</Private></Reference>
+    <!-- BricsCAD V26 managed APIs, compile-time only; see Bcad.Mcp.csproj. -->
+    <PackageReference Include="BricsCAD.26.NET" Version="26.2.3" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

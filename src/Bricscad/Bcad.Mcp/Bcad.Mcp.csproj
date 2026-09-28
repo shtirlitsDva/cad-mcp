@@ -3,7 +3,7 @@
        src/Autocad/Acd.Mcp) against BricsCAD's BrxMgd/TD_Mgd with BRICSCAD
        defined; host differences are #if blocks in those sources, never forks.
        Assembly name stays Acd.Mcp: same pipe (acd-mcp-<pid>), same bridge, same
-       tools, same %LOCALAPPDATA%\Acd.Mcp data. -->
+       tools. Storage is per host (HostStorage: %LOCALAPPDATA%\Bcad.Mcp). -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>Acd.Mcp</AssemblyName>
@@ -36,9 +36,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- BricsCAD provides these at runtime (Private=False = never copied). -->
-    <Reference Include="BrxMgd"><HintPath>$(BricsCADPath)\BrxMgd.dll</HintPath><Private>False</Private></Reference>
-    <Reference Include="TD_Mgd"><HintPath>$(BricsCADPath)\TD_Mgd.dll</HintPath><Private>False</Private></Reference>
+    <!-- BricsCAD V26 managed APIs, compile-time only (BricsCAD provides them
+         at runtime). Bricsys ships no NuGet; this community package carries
+         the Bricsys managed-module license. Not strong-named, so building
+         against 26.2.3 runs on any 26.x. -->
+    <PackageReference Include="BricsCAD.26.NET" Version="26.2.3" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>
