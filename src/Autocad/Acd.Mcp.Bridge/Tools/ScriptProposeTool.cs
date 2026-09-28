@@ -48,7 +48,7 @@ namespace Acd.Mcp.Bridge.Tools
         public Task<ProposeScriptResult> ProposeAsync(
             [Description("Telegram-style name (lowercase, hyphenated, no filler). Used as the saved filename.")]
             string name,
-            [Description("The full script body — top-level C# statements, `using` directives at the top, block-form `using (var tx = ...) { ... }` for disposables. Globals: Doc, Db, Ed, CivilDoc, Acd. See acd-mcp:script for conventions.")]
+            [Description("The full script body — top-level C# statements, `using` directives at the top, block-form `using (var tx = ...) { ... }` for disposables. Globals: Doc, Db, Ed, CivilDoc (not in BricsCAD), Acd. See acd-mcp:script for conventions.")]
             string script_body,
             [Description("Optional one-line summary, surfaced in the Manage Scripts window.")]
             string? input_summary = null,

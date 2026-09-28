@@ -36,7 +36,9 @@ namespace Acd.Mcp.Bridge.Tools
             "(metadata façade). Imported namespaces: System, System.Collections.Generic, System.Linq, " +
             "System.IO, System.Text, and Autodesk.AutoCAD.ApplicationServices / DatabaseServices / " +
             "Geometry / EditorInput / Runtime. Any other namespace (e.g. Autodesk.AutoCAD.Colors, " +
-            "Autodesk.Civil.*) needs a using directive or the full type name. success=false means the snippet did not compile " +
+            "Autodesk.Civil.*) needs a using directive or the full type name. In BricsCAD the imports are " +
+            "Bricscad.ApplicationServices / EditorInput and Teigha.DatabaseServices / Geometry / Runtime, " +
+            "BRICSCAD is #defined, and there is no CivilDoc. success=false means the snippet did not compile " +
             "(diagnostics) or threw (stderr). return_value_json is the projected value (or a " +
             "$unsupported / $serialization_error marker), never a JSON-encoded string. An error result " +
             "means the snippet did not run (plugin not reached, or the plugin refused the call); its text " +
