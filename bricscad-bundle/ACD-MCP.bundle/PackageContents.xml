@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BricsCAD ApplicationPlugin bundle manifest for ACD-MCP.
+
+  Drop this folder into %APPDATA%\Bricsys\ApplicationPlugins\ to autoload
+  Acd.Mcp.dll (the BricsCAD build) on BricsCAD startup. BricsCAD reads the
+  Autodesk bundle format; AppVersion is stamped by Build-Release.ps1.
+
+  BricsCAD's series is the bare major ("26"); "V26" or "R25.0" never match.
+-->
+<ApplicationPackage SchemaVersion="1.0"
+                    Name="ACD-MCP"
+                    AppVersion="0.0.0"
+                    ProductCode="{D5BBCAA7-2328-4E8A-B485-55ECE41E7948}"
+                    UpgradeCode="{D5BBCAA7-2328-4E8A-B485-55ECE41E7948}"
+                    Author="Norsyn"
+                    Description="Live C# REPL + multi-file batch runner exposed as an MCP server.">
+
+  <CompanyDetails Name="Norsyn"
+                  Url="https://github.com/shtirlitsDva/ACD-MCP"
+                  Email=""/>
+
+  <Components Description="x64 BricsCAD V26">
+    <RuntimeRequirements OS="Win64"
+                         SeriesMin="26"
+                         SeriesMax="26"/>
+
+    <ComponentEntry AppName="ACD-MCP"
+                    ModuleName="./Contents/Acd.Mcp.dll"
+                    AppDescription="ACD-MCP plugin: C# REPL + batch runner"
+                    AppType=".Net"
+                    LoadOnAutoCADStartup="True"/>
+  </Components>
+</ApplicationPackage>

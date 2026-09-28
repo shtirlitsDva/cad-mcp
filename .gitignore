@@ -108,5 +108,7 @@ Deploy/
 # though its own .gitkeep said "the actual binaries are never committed".
 autocad-bundle/ACD-MCP.bundle/Contents/*
 !autocad-bundle/ACD-MCP.bundle/Contents/.gitkeep
+bricscad-bundle/ACD-MCP.bundle/Contents/*
+!bricscad-bundle/ACD-MCP.bundle/Contents/.gitkeep
 revit-bundle/RVT-MCP.bundle/Contents/*
 !revit-bundle/RVT-MCP.bundle/Contents/Rvt.Mcp.addin
