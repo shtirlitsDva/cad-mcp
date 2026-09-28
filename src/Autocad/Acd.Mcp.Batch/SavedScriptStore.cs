@@ -34,9 +34,9 @@ namespace Acd.Mcp.Batch
     {
         public string Root { get; }
 
-        public SavedScriptStore(string? rootOverride = null)
+        public SavedScriptStore(string root)
         {
-            Root = rootOverride ?? DefaultRoot();
+            Root = root;
             Directory.CreateDirectory(System.IO.Path.Combine(Root, "batch"));
             Directory.CreateDirectory(System.IO.Path.Combine(Root, "script"));
         }
@@ -194,10 +194,5 @@ namespace Acd.Mcp.Batch
             if (clean.Length > 80) clean = clean.Substring(0, 80);
             return clean;
         }
-
-        private static string DefaultRoot() => System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Acd.Mcp",
-            "scripts");
     }
 }

@@ -37,9 +37,9 @@ namespace Acd.Mcp.Batch
 
         public string Root { get; }
 
-        public BatchRunHistory(string? rootOverride = null)
+        public BatchRunHistory(string root)
         {
-            Root = rootOverride ?? DefaultRoot();
+            Root = root;
             Directory.CreateDirectory(Root);
         }
 
@@ -115,11 +115,6 @@ namespace Acd.Mcp.Batch
             if (!Directory.Exists(Root)) return null;
             return Directory.GetFiles(Root, $"*_{runId}.json").FirstOrDefault();
         }
-
-        private static string DefaultRoot() => System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Acd.Mcp",
-            "batch-runs");
     }
 
     // Public, JSON-serialisable summary of a single run.

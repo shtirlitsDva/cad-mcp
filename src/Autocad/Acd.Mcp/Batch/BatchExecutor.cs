@@ -78,7 +78,7 @@ namespace Acd.Mcp.Batch.Runtime
                     nameof(editor));
             _editor = editor;
             _scriptHost = BatchScriptRuntime.CreateHost();
-            History = new BatchRunHistory();
+            History = new BatchRunHistory(HostStorage.Local("batch-runs"));
         }
 
         // Agent path: write the script to the saved store (overwriting if a

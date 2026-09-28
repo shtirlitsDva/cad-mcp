@@ -42,9 +42,7 @@ namespace Acd.Mcp
             {
                 try
                 {
-                    var dir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "Acd.Mcp");
+                    var dir = HostStorage.LocalRoot;
                     Directory.CreateDirectory(dir);
                     _logFile = Path.Combine(dir, "log.txt");
                 }

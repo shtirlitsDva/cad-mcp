@@ -64,14 +64,10 @@ namespace Acd.Mcp
         private static ScriptEditor? _scriptEditor;
         private static ScriptRpcHandler? _scriptRpc;
 
-        // Path of the SCRIPT editor's mirror file. BATCH editor uses
-        // buffer-batch.csx (its EditorBuffer.DefaultPath) in the same
-        // folder; the buffer-<flavor> naming keeps the two mirror files
-        // sorted adjacently in Explorer.
-        private static string ScriptMirrorPath => System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Acd.Mcp",
-            "buffer-script.csx");
+        // Mirror files of the two editors; the buffer-<flavor> naming keeps
+        // them sorted adjacently in Explorer.
+        private static string ScriptMirrorPath => HostStorage.Local("buffer-script.csx");
+        private static string BatchMirrorPath => HostStorage.Local("buffer-batch.csx");
 
         // DTO graph. Built once in TryEnsureCore; the same registry feeds both
         // the JsonSerializerOptions (passed to ScriptSession) and the loader
@@ -189,9 +185,7 @@ namespace Acd.Mcp
         {
             try
             {
-                var path = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Acd.Mcp", "config.json");
+                var path = HostStorage.Local("config.json");
                 if (!System.IO.File.Exists(path)) return true;
 
                 var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
@@ -475,11 +469,11 @@ namespace Acd.Mcp
                 // debounce timer). Disposing the editor flushes the pending
                 // write and tears down the timer. SavedScriptStore is
                 // filesystem-backed and stateless — nothing to dispose.
-                _scriptStore ??= new SavedScriptStore();
+                _scriptStore ??= new SavedScriptStore(HostStorage.Roaming("scripts"));
                 if (_batchEditor is null)
                 {
                     _batchEditor = new ScriptEditor(
-                        ScriptFlavor.Batch, _scriptStore, new EditorBuffer());
+                        ScriptFlavor.Batch, _scriptStore, new EditorBuffer(BatchMirrorPath));
                     _resources!.Register("batchEditor", _batchEditor);
                 }
                 if (_scriptEditor is null)

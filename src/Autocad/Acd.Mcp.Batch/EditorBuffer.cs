@@ -14,13 +14,6 @@ namespace Acd.Mcp.Batch
     // debounce timer's callback fires on a threadpool thread.
     public sealed class EditorBuffer : IDisposable
     {
-        // BATCH editor mirror path. SCRIPT instances pass an explicit
-        // pathOverride to point at buffer-script.csx in the same folder.
-        public static string DefaultPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Acd.Mcp",
-            "buffer-batch.csx");
-
         private readonly string _path;
         private readonly TimeSpan _debounce;
         private readonly object _lock = new();
@@ -28,9 +21,9 @@ namespace Acd.Mcp.Batch
         private Timer? _timer;
         private bool _disposed;
 
-        public EditorBuffer(string? pathOverride = null, TimeSpan? debounce = null)
+        public EditorBuffer(string path, TimeSpan? debounce = null)
         {
-            _path = pathOverride ?? DefaultPath;
+            _path = path;
             _debounce = debounce ?? TimeSpan.FromMilliseconds(250);
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         }
