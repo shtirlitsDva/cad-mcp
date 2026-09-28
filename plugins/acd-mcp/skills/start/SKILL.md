@@ -1,91 +1,71 @@
 ---
 name: start
-description: Brief Claude on the ACD-MCP plugin — what it does, how to call it, and which sibling skill is mandatory for the task. Auto-loads when the user mentions AutoCAD, Civil 3D, the C# script REPL inside AutoCAD, batch DWG edits, or asks how to use this MCP. Invoke explicitly with /acd-mcp:start at the top of an AutoCAD session.
-when_to_use: User mentions AutoCAD, Civil 3D, the live script REPL inside AutoCAD, batch edits across many .dwg files, the BATCH palette or SCRIPT palette, "the MCP", `autocad_script_execute`, or asks what this plugin can do. Also use as a refresher when starting a new turn that involves the plugin and earlier briefing has scrolled out.
+description: Briefing for the ACD-MCP plugin — a live C# script session and a multi-file batch runner inside a running AutoCAD / Civil 3D 2025+. Use it whenever the user mentions AutoCAD, Civil 3D, a .dwg drawing, the SCRIPT or BATCH palette, `autocad_*` tools, or asks what this MCP can do, even when the request looks simple. It says which sibling skill (/acd-mcp:script or /acd-mcp:batch) to load before the first tool call, and how to bring the tools up.
 ---
 
 <what-this-plugin-is>
-**ACD-MCP** is a Model Context Protocol server that runs a **live C# script session inside a running AutoCAD 2025+ process**, plus a **multi-file batch runner** for applying the same script across a folder of `.dwg` files.
+A stdio bridge (`Acd.Mcp.Bridge.exe`) talks over the pipe `acd-mcp-<pid>` to a plugin (`Acd.Mcp.dll`) inside AutoCAD 2025+.
+- **SCRIPT** — `autocad_script_execute` compiles a C# snippet with Roslyn and runs it on AutoCAD's main thread under `Doc.LockDocument()`, against the active drawing. The session keeps state between calls.
+- **BATCH** — one script body applied to each `.dwg` in a folder, each loaded as a side `Database` (no active document).
 
-Architecture: a stdio bridge (`Acd.Mcp.Bridge.exe`, run by the MCP client) talks over a named pipe to a plugin (`Acd.Mcp.dll`) loaded inside AutoCAD. Each script call compiles via Roslyn `CSharpScript`, runs on AutoCAD's main thread under `Doc.LockDocument()`, and returns. State persists between calls. Batch runs iterate `Database` objects loaded side-band — no active document.
-
-The user clicks `ACDMCP_START` (or it's autoloaded) to open the pipe. The user opens `ACDMCP_PALETTE` to get the in-AutoCAD SCRIPT/BATCH tabs. Outside a DevReload setup you cannot open the palette yourself; you can only check via the MCP tools whether it's running.
-
-**With DevReload present (the agentic-dev setup), you bring ACD-MCP up yourself:** `devreload_load_plugin("Acd.Mcp", pid=…)` loads `Acd.Mcp.dll` into that AutoCAD and its `acd-mcp-<pid>` pipe comes up on the next idle — your first `autocad_script_execute` may return `[PIPE_NOT_LISTENING]`; retry once and it connects.
-
-**Multiple AutoCAD instances:** every tool takes an optional `pid` — pass it to target a specific instance, e.g. `autocad_script_execute(code, pid=65072)`. Omit `pid` when only one instance has `Acd.Mcp` loaded (the bridge finds it). With two or more loaded and no `pid`, the bridge can't guess and returns `MULTIPLE_AUTOCAD_PLUGINS` — pass `pid` to resolve. Get pids from DevReload's `acad_list_instances`.
+Every tool takes an optional `pid`. Pass it when `Acd.Mcp` is loaded in more than one AutoCAD; pids come from DevReload's `acad_list_instances`.
 </what-this-plugin-is>
 
-<two-modes>
-1. **SCRIPT** — single-drawing operations against the active document. Two tools (`autocad_script_execute`, `autocad_script_propose`). See sibling **`/acd-mcp:script`** for the full surface, conventions, return-value serialization, propose-vs-execute decision rule, and the staging-model contract.
+<load-a-flavor-first>
+Load the flavor skill before the first tool call. Each one holds the rules that stop silent failures (auto-return, mirror-before-propose, `replaced_dirty`, the Step DSL).
 
-2. **BATCH** — multi-file edits across many `.dwg` files in a folder. Three tools (`autocad_batch_propose_script`, `autocad_batch_run_test`, `autocad_batch_list_files`) + the `acd-mcp://batch-runs/last` resource. See sibling **`/acd-mcp:batch`** for the full surface, Step DSL, Test→Live workflow, and the staging-model contract.
-</two-modes>
+| Task | Skill |
+|---|---|
+| Inspect, change, or report on the drawing that is open | `/acd-mcp:script` |
+| The same change across many `.dwg` files in a folder | `/acd-mcp:batch` |
+| A result contains `{"$unsupported":"T"}`, or a type needs a richer JSON shape | `/acd-mcp:add-dto` |
 
-<must-load-a-flavor-before-any-mcp-call>
-**This is a hard rule, not a recommendation.** Before ANY plugin tool call, you MUST load the matching flavor skill:
+One drawing = SCRIPT; many drawings = BATCH. If the intent is not clear, ask the user.
+</load-a-flavor-first>
 
-* **Single-drawing operation** (inspect / modify / report on the drawing currently open) → load **`/acd-mcp:script`**.
-* **Multi-drawing operation** (same change across many `.dwg` files in a folder) → load **`/acd-mcp:batch`**.
+<bring-up>
+First call in a session: `autocad_script_execute("Doc.Name")`. It proves the pipe is up and a drawing is open.
 
-The active drawing is the tell: one drawing = SCRIPT, many drawings = BATCH. If the user's intent is ambiguous, **ASK before loading** — do not default to one flavor.
+A failure is an error result. Its text starts with an error code in brackets, e.g. `[PIPE_NOT_LISTENING] ...`. The bridge already retries the connection (200 / 800 / 2000 ms). The resource `acd-mcp://status` shows the plugin version and which capabilities are ready (e.g. `PALETTE_CLOSED`). It needs the pipe too: when the pipe is down, it gives the same error code.
 
-Loading is not optional. Each flavor skill carries rules that prevent silent failures: auto-return semantics, mirror-before-propose, discriminated response shapes, the `replaced_dirty` UX contract, return-value serialization etiquette. Calling MCP tools without the flavor skill loaded is how agents trip the same gotchas every session.
+| Code | Action |
+|---|---|
+| `PLUGIN_ERROR` | The plugin got the call and refused it. The message after the code says why (e.g. `NO_ACTIVE_DOCUMENT: ...`, `BATCH palette is not open ...`). Act on the message. |
+| `INVALID_PARAMS` | A wrong or missing argument. Fix the call. |
+| `NO_AUTOCAD_FOUND` | With DevReload: `acad_start`, then `devreload_load_plugin("Acd.Mcp")`. Without: ask the user to start AutoCAD. The plugin opens its pipe on the first idle unless `%LOCALAPPDATA%\Acd.Mcp\config.json` has `{ "auto_start": false }`; then the user runs `ACDMCP_START`. |
+| `PIPE_NOT_LISTENING` | The listener is still coming up (normal right after the plugin loads). Wait a few seconds, call again. Still failing without DevReload: ask the user to run `ACDMCP_START`. |
+| `AMBIGUOUS_AUTOCADS` | Several AutoCADs, no pipe up yet. Wait, call again. |
+| `MULTIPLE_AUTOCAD_PLUGINS` | Pass `pid`. |
+| `PINNED_PID_GONE` | The `pid` you passed is no longer running. Get the pids again (`acad_list_instances`). |
+| `PIPE_BROKEN` | The connection dropped during the call: AutoCAD closed, crashed, or the plugin was reloaded. Check AutoCAD before you call again; a change may or may not have happened. |
+| `BAD_REPLY` | The plugin's reply has the wrong shape. Usually the bridge and the plugin are different versions. Tell the user. |
 
-If you are mid-conversation and realize you've been calling tools without the right sibling loaded, STOP and load it now. Re-reading a few rules costs less than the wrong action.
-</must-load-a-flavor-before-any-mcp-call>
+The propose tools and `autocad_batch_set_selection` open the palette themselves. `autocad_batch_list_files` and `autocad_batch_run_test` need the BATCH palette open with a folder + mask; when it is not, the error text says so — call `autocad_batch_set_selection`, or ask the user to open it (`ACDMCP_PALETTE`).
 
-<hard-rule-guessing-forbidden>
-**GUESSING IS FORBIDDEN.** Before referencing any AutoCAD / Civil 3D type's property in code or in a DTO, verify it exists. Three acceptable verification paths, in this order of preference:
+Civil 3D metadata: `Aec*` assemblies are loaded only in the verticals. Check before you use them:
+```csharp
+AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetName().Name).Where(n => n != null && n.StartsWith("Aec")).ToList()
+```
+</bring-up>
 
-* **Probe the live type via SCRIPT** — `autocad_script_execute("typeof(T).GetProperties().Select(p => p.Name).ToList()")`. Authoritative.
-* **Read the official Autodesk .NET API docs** — fetch via Context7 (`mcp__plugin_context7_context7__query-docs` with the AutoCAD Managed API library) or web search the exact class name. Use when the type isn't reachable from the active drawing.
-* **Inspect an instance** — `someObj.GetType().GetProperties()...` when you already have a representative value.
+<verify-before-you-reference>
+Verify each AutoCAD / Civil 3D property before you use it in a snippet or a DTO. A guessed name fails to compile or returns wrong data, and the user then debugs your guess. In order of preference:
+1. Probe the live type: `autocad_script_execute("typeof(T).GetProperties().Select(p => p.Name).ToList()")`.
+2. Read the Autodesk .NET API docs (Context7 or a web search for the exact class name) when the type is not reachable from the drawing.
+3. Inspect an instance you already have: `obj.GetType().GetProperties()...`.
 
-A guessed property name silently fails to compile or returns wrong data. If after all three you still aren't sure, ask the user — don't invent.
-</hard-rule-guessing-forbidden>
-
-<initial-checks>
-On first use in a session, sanity-check the surface:
-
-1. **Pipe up?** Call `autocad_script_execute("Doc.Name")`. Confirms the pipe is open and a drawing is loaded.
-   * The bridge auto-retries connect (200 / 800 / 2000 ms) so a brief AutoCAD restart window is invisible.
-   * Failure shape: `success: false` with `stderr` starting with a bracketed error_code, e.g. `[PIPE_NOT_LISTENING]`, `[NO_AUTOCAD_FOUND]`, `[AMBIGUOUS_AUTOCADS]`, `[MULTIPLE_AUTOCAD_PLUGINS]`. Read the code, then read the `acd-mcp://status` resource for the full snapshot.
-   * Resolution by code:
-     * `NO_AUTOCAD_FOUND` → with DevReload: `acad_start` then `devreload_load_plugin("Acd.Mcp", pid=…)`. Otherwise the user starts AutoCAD (the plugin auto-starts on first idle; opt out via `%LOCALAPPDATA%\Acd.Mcp\config.json` `{ "auto_start": false }` + `ACDMCP_START`).
-     * `PIPE_NOT_LISTENING` → wait a few seconds and retry once; the listener may still be coming up (expected right after `devreload_load_plugin("Acd.Mcp")`). If it persists without DevReload, ask the user to run `ACDMCP_START`.
-     * `AMBIGUOUS_AUTOCADS` → multiple AutoCADs running, none with the acd-mcp pipe up yet; wait a moment and retry.
-     * `MULTIPLE_AUTOCAD_PLUGINS` → two or more instances have `Acd.Mcp` loaded; pass an explicit `pid` to the tool to pick one (pids from DevReload's `acad_list_instances`). The bridge's `--pid` flag still sets a session-wide default.
-
-2. **Palette up?** No longer a hard prerequisite — `autocad_script_propose` and `autocad_batch_propose_script` auto-open the palette on call (fragility-fix v2). The only handlers that still require an open palette are the BATCH selection readers (`autocad_batch_list_files`, `autocad_batch_run_test` — both surface `error_code: "PALETTE_CLOSED"` when the palette is shut). The agent's response: ask the user to open the palette, set folder + mask, then retry. The bridge never throws for any of these cases (V2-G4): always read `result.ok` first, then `error_code` / `error_message` on failure.
-
-3. **AECC stack loaded?** If you'll touch entity metadata, probe:
-   ```csharp
-   AppDomain.CurrentDomain.GetAssemblies()
-       .Select(a => a.GetName().Name)
-       .Where(n => n != null && n.StartsWith("Aec"))
-       .ToList()
-   ```
-   On Civil 3D 2025, expect to see `AecPropDataMgd` (where `PropertyDataServices` lives) and friends. On vanilla AutoCAD, no `Aec*` assemblies are loaded and `Acd.DataProvider` will return block-attribute data only.
-
-Never guess at what's available — verify.
-</initial-checks>
+Still not sure: ask the user.
+</verify-before-you-reference>
 
 <file-locations>
 | Purpose | Path |
 |---|---|
-| DTO system folder (plugin-owned, do not edit) | `%LOCALAPPDATA%\Acd.Mcp\dto-system\` |
+| DTO system folder (plugin-owned, replaced on install) | `%LOCALAPPDATA%\Acd.Mcp\dto-system\` |
 | DTO user folder (yours and the user's) | `%APPDATA%\Acd.Mcp\dto-user\` |
 | Saved SCRIPT scripts | `%APPDATA%\Acd.Mcp\scripts\script\<name>.csx` |
-| Saved batch scripts | `%APPDATA%\Acd.Mcp\scripts\batch\<name>.csx` |
-| SCRIPT editor mirror (read before `autocad_script_propose`) | `%LOCALAPPDATA%\Acd.Mcp\buffer-script.csx` |
-| BATCH editor mirror (read before `autocad_batch_propose_script`) | `%LOCALAPPDATA%\Acd.Mcp\buffer-batch.csx` |
+| Saved BATCH scripts | `%APPDATA%\Acd.Mcp\scripts\batch\<name>.csx` |
+| SCRIPT editor mirror | `%LOCALAPPDATA%\Acd.Mcp\buffer-script.csx` |
+| BATCH editor mirror | `%LOCALAPPDATA%\Acd.Mcp\buffer-batch.csx` |
 | Batch-run history | `%LOCALAPPDATA%\Acd.Mcp\batch-runs\<timestamp>_<run_id>.json` |
-| Plugin diagnostic log | `%LOCALAPPDATA%\Acd.Mcp\log.txt` |
+| Plugin log | `%LOCALAPPDATA%\Acd.Mcp\log.txt` |
 </file-locations>
-
-<sibling-skills>
-* **`/acd-mcp:script`** — full reference for the single-drawing surface. Conventions (Doc/Db/Ed globals, namespace imports, using-first, block-form `using`, trailing-expression-return + auto-return gotchas), return-value serialization etiquette, propose-vs-execute decision rule, mirror-before-propose rule, response shapes, staging model, replaced_dirty contract.
-* **`/acd-mcp:batch`** — full reference for the multi-drawing surface. Step DSL, three globals (`xDb`/`xTx`/`ctx`), cross-file state, Test→Live workflow, response shapes, staging model, replaced_dirty contract.
-* **`/acd-mcp:add-dto`** — write or override a DTO when serialization emits `{"$unsupported":"..."}` or when the default projection of a type is too thin. One-type-per-DTO-file rule lives there.
-</sibling-skills>

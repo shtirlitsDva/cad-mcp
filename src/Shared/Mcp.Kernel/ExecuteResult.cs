@@ -33,24 +33,30 @@ namespace Mcp.Kernel
     // double-encoding the payload into a "..." blob, roughly doubling its size.
     // JsonElement round-trips losslessly across both hops; deserialization clones
     // it so it survives the source document's disposal.
+    //
+    // Every member that can be null has a default value. The MCP SDK derives
+    // the tool's outputSchema from this record, and a positional parameter
+    // without a default is "required" there — but a null member is left out on
+    // the wire, so a required nullable member makes a normal result fail its
+    // own schema.
     public sealed record ExecuteResult(
         bool Success,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Stdout,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Stderr,
-        [property: JsonIgnore] string? ReturnValueRepr,
-        JsonElement? ReturnValueJson,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiagnosticInfo[]? Diagnostics,
-        long ElapsedMs)
+        long ElapsedMs,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Stdout = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Stderr = null,
+        [property: JsonIgnore] string? ReturnValueRepr = null,
+        JsonElement? ReturnValueJson = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiagnosticInfo[]? Diagnostics = null)
     {
         public static ExecuteResult Ok(string? returnValueRepr, JsonElement? returnValueJson, long elapsedMs) =>
-            new(true, null, null, returnValueRepr, returnValueJson, null, elapsedMs);
+            new(true, elapsedMs, ReturnValueRepr: returnValueRepr, ReturnValueJson: returnValueJson);
 
         public static ExecuteResult CompileError(DiagnosticInfo[] diagnostics, long elapsedMs) =>
-            new(false, null, null, null, null, diagnostics, elapsedMs);
+            new(false, elapsedMs, Diagnostics: diagnostics);
 
         public static ExecuteResult Runtime(string error, long elapsedMs) =>
-            new(false, null, error, null, null, null, elapsedMs);
+            new(false, elapsedMs, Stderr: error);
     }
 
-    public sealed record DiagnosticInfo(string Severity, string Message, int? Line, int? Column);
+    public sealed record DiagnosticInfo(string Severity, string Message, int? Line = null, int? Column = null);
 }

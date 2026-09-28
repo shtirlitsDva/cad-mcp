@@ -17,9 +17,9 @@ builder.Services.AddSingleton(new AcadClient(explicitPid));
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
-    // Shared agent-facing JSON policy (relaxed encoder) — single source of
-    // truth in McpServerJson (this project; the Revit bridge links it).
-    .WithToolsFromAssembly(serializerOptions: McpServerJson.Relaxed)
+    // Agent-facing JSON policy (relaxed encoder, snake_case names) — single
+    // source of truth in McpServerJson (this project; the Revit bridge links it).
+    .WithToolsFromAssembly(serializerOptions: McpServerJson.SnakeCase)
     .WithResourcesFromAssembly();
 
 await builder.Build().RunAsync();

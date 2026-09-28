@@ -33,6 +33,9 @@
     <Compile Include="..\..\..\src\Autocad\Acd.Mcp\Serialization\AcadDtoOptions.cs" Link="Sut\AcadDtoOptions.cs" />
     <Compile Include="..\..\..\src\Autocad\Acd.Mcp\Serialization\DtoDiagnostics.cs" Link="Sut\DtoDiagnostics.cs" />
     <Compile Include="..\..\..\src\Autocad\Acd.Mcp\ResourceManager.cs" Link="Sut\ResourceManager.cs" />
+    <Compile Include="..\..\..\src\Autocad\Acd.Mcp\Batch\BatchFileSelection.cs" Link="Sut\BatchFileSelection.cs" />
+    <Compile Include="..\..\..\src\Autocad\Acd.Mcp\Batch\RecentFolderList.cs" Link="Sut\RecentFolderList.cs" />
+    <Compile Include="..\..\..\src\Autocad\Acd.Mcp\Pipe\MainThread.cs" Link="Sut\MainThread.cs" />
   </ItemGroup>
 
   <!-- Outcome<T> now lives in Acd.Mcp.Batch (pure net8.0 — references safely). -->

@@ -42,7 +42,11 @@
     <Color x:Key="Color.Fg.Secondary">#FFA0AEC0</Color>
     <Color x:Key="Color.Fg.Disabled">#FF6A7280</Color>
     <Color x:Key="Color.Fg.Failure">#FFFCA5A5</Color>
+    <Color x:Key="Color.Fg.Success">#FF86EFAC</Color>         <!-- green pair of Fg.Failure -->
     <Color x:Key="Color.Fg.Caret">#FFFFFFFF</Color>
+
+    <Color x:Key="Color.Status.Success">#FF4A7C59</Color>
+    <Color x:Key="Color.Status.Error">#FFB94A4A</Color>
 
     <Color x:Key="Color.ScrollBar.Track">#FF2D3442</Color>
     <Color x:Key="Color.ScrollBar.Thumb">#FF4A5568</Color>
@@ -71,7 +75,11 @@
     <SolidColorBrush x:Key="Brush.Fg.Secondary"       Color="{StaticResource Color.Fg.Secondary}"/>
     <SolidColorBrush x:Key="Brush.Fg.Disabled"        Color="{StaticResource Color.Fg.Disabled}"/>
     <SolidColorBrush x:Key="Brush.Fg.Failure"         Color="{StaticResource Color.Fg.Failure}"/>
+    <SolidColorBrush x:Key="Brush.Fg.Success"         Color="{StaticResource Color.Fg.Success}"/>
     <SolidColorBrush x:Key="Brush.Fg.Caret"           Color="{StaticResource Color.Fg.Caret}"/>
+
+    <SolidColorBrush x:Key="Brush.Status.Success"     Color="{StaticResource Color.Status.Success}"/>
+    <SolidColorBrush x:Key="Brush.Status.Error"       Color="{StaticResource Color.Status.Error}"/>
 
     <SolidColorBrush x:Key="Brush.Bg.Inset"           Color="{StaticResource Color.Bg.Inset}"/>
 
@@ -494,6 +502,34 @@
     </Style>
 
     <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!--  TOOLTIP  — full template; the OS one is a light box with dark text   -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+
+    <Style TargetType="ToolTip">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}"/>
+        <Setter Property="HasDropShadow" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="3">
+                        <ContentPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
     <!--  HELPER STYLES                                                         -->
     <!-- ════════════════════════════════════════════════════════════════════ -->
 
@@ -522,6 +558,141 @@
         <Setter Property="Padding" Value="6"/>
         <Setter Property="CornerRadius" Value="3"/>
     </Style>
+
+    <!-- The BATCH palette's "N files matched" box. Green when the mask selects
+         files, red when it selects none or the folder/mask is not valid, gray
+         when there is no folder or a scan still runs. Hover opens the file
+         list (Popup.FileList). -->
+    <Style x:Key="Border.MatchBadge" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding MatchState}" Value="Matched">
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Status.Success}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding MatchState}" Value="NoMatch">
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Status.Error}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding MatchState}" Value="Error">
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Status.Error}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The hover file list. A Popup and not a ToolTip: WPF makes a tooltip
+         click-through, so the wheel would go to the element below it.
+         BatchControl.xaml.cs opens and closes it. -->
+    <Style x:Key="Popup.FileList" TargetType="Popup">
+        <Setter Property="Placement" Value="Bottom"/>
+        <Setter Property="AllowsTransparency" Value="True"/>
+        <Setter Property="StaysOpen" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+
+    <Style x:Key="Border.FileListPopup" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border.Subtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Padding" Value="6,4"/>
+    </Style>
+
+    <Style x:Key="Text.FileMatched" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Success}"/>
+    </Style>
+
+    <Style x:Key="Text.FileUnmatched" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Failure}"/>
+    </Style>
+
+    <!-- The tooltip's file lists: matched (green) above unmatched (red). -->
+    <Style x:Key="ScrollViewer.FileList" TargetType="ScrollViewer" BasedOn="{StaticResource {x:Type ScrollViewer}}">
+        <Setter Property="MaxHeight" Value="400"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    </Style>
+
+    <DataTemplate x:Key="Template.FileMatched">
+        <TextBlock Text="{Binding}" Style="{StaticResource Text.FileMatched}"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="Template.FileUnmatched">
+        <TextBlock Text="{Binding}" Style="{StaticResource Text.FileUnmatched}"/>
+    </DataTemplate>
+
+    <Style x:Key="ItemsControl.FileMatched" TargetType="ItemsControl">
+        <Setter Property="Margin" Value="0,0,0,6"/>
+        <Setter Property="ItemTemplate" Value="{StaticResource Template.FileMatched}"/>
+    </Style>
+
+    <Style x:Key="ItemsControl.FileUnmatched" TargetType="ItemsControl">
+        <Setter Property="ItemTemplate" Value="{StaticResource Template.FileUnmatched}"/>
+    </Style>
+
+    <!-- A button with no chrome but a hover surface: the rows of the recent
+         folders dropdown. -->
+    <Style x:Key="Button.Flat" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="2">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Bg.Selected}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A Button.Flat that can be clicked inside a ComboBox row (see
+         ComboBoxRowButton.cs for why a plain Button cannot). -->
+    <Style x:Key="Button.ComboBoxRow" TargetType="Button" BasedOn="{StaticResource Button.Flat}">
+        <Setter Property="ui:ComboBoxRowButton.ClicksInsideComboBox" Value="True"/>
+    </Style>
+
+    <!-- The minus on the left of a recent folder: removes it from the list. -->
+    <Style x:Key="Button.RemoveRecentFolder" TargetType="Button" BasedOn="{StaticResource Button.ComboBoxRow}">
+        <Setter Property="Content" Value="−"/>
+        <Setter Property="ToolTip" Value="Remove from the list"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Secondary}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Failure}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- One row of the Folder dropdown. The buttons handle the click, so the
+         ComboBox never selects a row: a pick is an explicit command. -->
+    <DataTemplate x:Key="Template.RecentFolderRow">
+        <DockPanel>
+            <Button DockPanel.Dock="Left" Style="{StaticResource Button.RemoveRecentFolder}"
+                    Command="{Binding DataContext.RemoveRecentFolderCommand, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                    CommandParameter="{Binding}"/>
+            <Button Style="{StaticResource Button.ComboBoxRow}" Content="{Binding}"
+                    Command="{Binding DataContext.PickRecentFolderCommand, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                    CommandParameter="{Binding}"/>
+        </DockPanel>
+    </DataTemplate>
 
     <!-- One row in the context inspector: name | type | value. Used by both
          the Globals and Variables ItemsControls in the Context expander. -->
@@ -686,6 +857,25 @@
         </Setter>
     </Style>
 
+    <!-- The text part of an editable ComboBox: no chrome of its own, the
+         ComboBox's ToggleButton paints the box around it. -->
+    <Style x:Key="ComboBox.EditableTextBox" TargetType="TextBox">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush.Fg.Caret}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource Brush.Bg.Selected}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <ScrollViewer x:Name="PART_ContentHost" Background="{TemplateBinding Background}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ComboBox">
         <Setter Property="Background" Value="{DynamicResource Brush.Bg.Control}"/>
         <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
@@ -724,6 +914,14 @@
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                           IsHitTestVisible="False"
                                           SnapsToDevicePixels="True"/>
+                        <!-- Shown instead of ContentSite when IsEditable. It
+                             covers all but the arrow column, so a click in the
+                             text edits and a click on the arrow opens the list. -->
+                        <TextBox x:Name="PART_EditableTextBox"
+                                 Style="{StaticResource ComboBox.EditableTextBox}"
+                                 Margin="{TemplateBinding Padding}"
+                                 IsReadOnly="{TemplateBinding IsReadOnly}"
+                                 Visibility="Collapsed"/>
                         <Popup x:Name="PART_Popup"
                                AllowsTransparency="True"
                                IsOpen="{TemplateBinding IsDropDownOpen}"
@@ -744,6 +942,10 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="ContentSite" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter TargetName="PART_DropDownButton" Property="BorderBrush"
                                     Value="{DynamicResource Brush.Border.Focused}"/>
@@ -755,6 +957,14 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- The BATCH palette's Folder box: type a path, or pick a recent one.
+         Rows: Template.RecentFolderRow. -->
+    <Style x:Key="ComboBox.RecentFolders" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+        <Setter Property="IsEditable" Value="True"/>
+        <Setter Property="IsTextSearchEnabled" Value="False"/>
+        <Setter Property="ItemTemplate" Value="{StaticResource Template.RecentFolderRow}"/>
     </Style>
 
     <!-- ════════════════════════════════════════════════════════════════════ -->

@@ -42,8 +42,14 @@ namespace Acd.Mcp.Batch.Tests.Fakes
         public List<string> OpenedPaths { get; } = new();
         public List<FakeSession> OpenedSessions { get; } = new();
 
+        // Paths that throw on Open, as ReadDwgFile does for an empty or
+        // damaged drawing (eBadDwgHeader).
+        public HashSet<string> UnreadablePaths { get; } = new();
+
         public IBatchSession Open(string path, FileLease lease)
         {
+            if (UnreadablePaths.Contains(path))
+                throw new InvalidDataException($"Simulated eBadDwgHeader on '{path}'.");
             if (!Drawings.TryGetValue(path, out var db))
             {
                 db = new FakeDatabase();

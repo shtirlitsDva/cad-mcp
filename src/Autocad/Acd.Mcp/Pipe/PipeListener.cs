@@ -190,7 +190,10 @@ namespace Acd.Mcp.Pipe
             }
             catch (Exception ex)
             {
-                return JsonRpcResponse.Err(req.Id, ErrorCodes.InternalError, ex.ToString());
+                // The agent gets the message, which the handlers write to be
+                // actionable; the stack trace goes to the log only.
+                SafeBoundary.Info("PipeListener.DispatchAsync", $"'{req.Method}' failed: {ex}");
+                return JsonRpcResponse.Err(req.Id, ErrorCodes.InternalError, ex.Message);
             }
         }
     }

@@ -115,11 +115,14 @@ instead of retrying.
 </plugin-side-lifecycle>
 
 <error-codes>
-The bridge tool wrappers swallow `AcadTransportException` and
-`AcadRpcException` into `ok=false` result records carrying a stable
-`error_code` string. The finite enum:
+A failure is an MCP error result (`isError: true`). `AcadTransportException`
+and `AcadRpcException` are `McpException`s, so the SDK sends their message as
+the error text, after its own `An error occurred invoking '<tool>': ` prefix.
+Both messages have the form `[ERROR_CODE] detail`.
 
-| `error_code`                | Source                       | Agent should              |
+Transport codes (`AcadTransportException`, bridge side):
+
+| Code                        | Source                       | Agent should              |
 | --------------------------- | ---------------------------- | ------------------------- |
 | `NO_AUTOCAD_FOUND`          | Bridge: discovery            | Ask user to start AutoCAD |
 | `AMBIGUOUS_AUTOCADS`        | Bridge: discovery (no pipe)  | Ask user to run ACDMCP_START or pass --pid |
@@ -127,9 +130,27 @@ The bridge tool wrappers swallow `AcadTransportException` and
 | `PINNED_PID_GONE`           | Bridge: --pid dead, no fallback | Ask user to restart AutoCAD |
 | `PIPE_NOT_LISTENING`        | Bridge: retries exhausted    | Read `acd-mcp://status`, retry once |
 | `PIPE_BROKEN`               | Bridge: mid-call I/O failure | Read `acd-mcp://status`, retry once |
-| `PALETTE_CLOSED`            | Plugin: batch.runTest / batch.listFiles | Ask user to open palette and set folder + mask |
-| `PLUGIN_NOT_INITIALIZED`    | Plugin: half-load            | Surface to user — check AutoCAD log |
-| `DTO_NOT_READY`             | Plugin: dto.* before init    | Wait for ACDMCP_START, retry once |
+| `BAD_REPLY`                 | Bridge: reply not readable (not JSON, frame too large, wrong shape) | Surface to user — bridge / plugin version mismatch |
+
+Plugin codes (`AcadRpcException`, from the JSON-RPC error code):
+
+| Code               | JSON-RPC code | Meaning                                  |
+| ------------------ | ------------- | ---------------------------------------- |
+| `METHOD_NOT_FOUND` | -32601        | Bridge / plugin version mismatch         |
+| `INVALID_PARAMS`   | -32602        | The bridge sent bad parameters           |
+| `PLUGIN_ERROR`     | any other     | The plugin refused the call; the detail is its message |
+
+A `PLUGIN_ERROR` detail is the plugin's exception message; the full
+exception goes to the plugin log. Typical details:
+
+| Detail starts with                    | Agent should              |
+| ------------------------------------- | ------------------------- |
+| `BATCH palette is not open.`          | Ask user to open the palette (ACDMCP_PALETTE) and set folder + mask |
+| `No files are currently selected`     | Ask user to set folder + mask |
+| `PLUGIN_NOT_INITIALIZED:`             | Surface to user — check AutoCAD log |
+| `DTO_NOT_READY:`                      | Wait for ACDMCP_START, retry once |
+
+`PALETTE_CLOSED` is a reason in `acd-mcp://status`, not an error code.
 </error-codes>
 
 <status-resource>
