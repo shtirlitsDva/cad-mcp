@@ -14,5 +14,13 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+
+    <!-- BricsCAD heads (src/Bricscad) reference BrxMgd/TD_Mgd from the install:
+         Bricsys publishes no NuGet package, so these heads are not in CI.slnf.
+         Override with -p:BricsCADPath=... or a Directory.Build.props.user. -->
+    <BricsCADPath Condition="'$(BricsCADPath)' == ''">C:\Program Files\Bricsys\BricsCAD V26 en_US</BricsCADPath>
   </PropertyGroup>
+  <!-- Optional machine-local overrides (git-ignored), e.g. BricsCADPath. -->
+  <Import Project="Directory.Build.props.user"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.props.user')" />
 </Project>

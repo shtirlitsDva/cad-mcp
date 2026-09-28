@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- BricsCAD head of Acd.Mcp.Api. Compiles the SAME sources (linked from
+       src/Autocad/Acd.Mcp.Api) against BricsCAD's BrxMgd/TD_Mgd with BRICSCAD
+       defined; host differences are #if blocks in those sources. The assembly
+       keeps the name Acd.Mcp.Api so InternalsVisibleTo, the shared-assemblies
+       config and every name-based lookup work unchanged. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Acd.Mcp.Api</AssemblyName>
+    <RootNamespace>Acd.Mcp.Api</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+    <DefineConstants>$(DefineConstants);BRICSCAD</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SourceDir>..\..\Autocad\Acd.Mcp.Api\</SourceDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SourceDir)**\*.cs" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- BricsCAD provides these at runtime (Private=False = never copied). -->
+    <Reference Include="BrxMgd"><HintPath>$(BricsCADPath)\BrxMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="TD_Mgd"><HintPath>$(BricsCADPath)\TD_Mgd.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Autocad\Acd.Mcp.Contracts\Acd.Mcp.Contracts.csproj" />
+  </ItemGroup>
+</Project>

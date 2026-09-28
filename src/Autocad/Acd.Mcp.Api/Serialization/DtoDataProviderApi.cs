@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
+#endif
 
 namespace Acd.Mcp.Serialization
 {

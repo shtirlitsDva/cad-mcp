@@ -49,9 +49,9 @@ namespace Acd.Mcp.Batch.Runtime
                     "System.IO",
                     "System.Text",
                     "Acd.Mcp.Batch",
-                    "Autodesk.AutoCAD.DatabaseServices",
-                    "Autodesk.AutoCAD.Geometry",
-                    "Autodesk.AutoCAD.Runtime")
+                    HostScript.DatabaseServices,
+                    HostScript.Geometry,
+                    HostScript.Runtime)
                 .WithAllowUnsafe(false)
                 .WithOptimizationLevel(OptimizationLevel.Debug);
         }

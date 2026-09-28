@@ -100,14 +100,14 @@ namespace Acd.Mcp.Serialization
             var headerType = DtoHeader.TryParse(source) ?? "";
             Type? resolvedType = string.IsNullOrEmpty(headerType)
                 ? null
-                : ResolveType(headerType);
+                : ResolveType(HostScript.MapTypeName(headerType));
 
             var api = new DtoRegistrationApi(_registry, _dataProvider, sourceTag);
             var globals = new DtoRegistrationGlobals(api);
 
             try
             {
-                CSharpScript.RunAsync(source, GetOptions(), globals, typeof(DtoRegistrationGlobals))
+                CSharpScript.RunAsync(HostScript.Prepare(source), GetOptions(), globals, typeof(DtoRegistrationGlobals))
                     .GetAwaiter().GetResult();
                 // Clear any prior diagnostic for this source on successful compile.
                 _diagnostics.ClearForSource(sourceTag);
@@ -167,16 +167,13 @@ namespace Acd.Mcp.Serialization
                     "System",
                     "System.Collections.Generic",
                     "System.Linq",
-                    "Autodesk.AutoCAD.ApplicationServices",
-                    "Autodesk.AutoCAD.DatabaseServices",
-                    "Autodesk.AutoCAD.Geometry",
-                    "Autodesk.AutoCAD.EditorInput",
-                    "Autodesk.AutoCAD.Runtime",
-                    "Autodesk.Civil",
-                    "Autodesk.Civil.ApplicationServices",
-                    "Autodesk.Civil.DatabaseServices",
-                    "Autodesk.Civil.DatabaseServices.Styles",
+                    HostScript.ApplicationServices,
+                    HostScript.DatabaseServices,
+                    HostScript.Geometry,
+                    HostScript.EditorInput,
+                    HostScript.Runtime,
                     "Acd.Mcp.Serialization")
+                .AddImports(HostScript.CivilNamespaces)
                 .WithAllowUnsafe(false)
                 .WithOptimizationLevel(OptimizationLevel.Debug);
 

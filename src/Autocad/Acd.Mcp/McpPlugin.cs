@@ -9,8 +9,13 @@ using Acd.Mcp.Script;
 using Acd.Mcp.Scripting;
 using Acd.Mcp.Serialization;
 using Acd.Mcp.Ui;
+#if BRICSCAD
+using Teigha.Runtime;
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
 using Exception = System.Exception;
 using SynchronizationContext = System.Threading.SynchronizationContext;
 

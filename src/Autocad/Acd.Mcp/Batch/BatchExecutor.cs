@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Acd.Mcp.Batch;
+using Acd.Mcp.Scripting;
 
 namespace Acd.Mcp.Batch.Runtime
 {
@@ -199,7 +200,7 @@ namespace Acd.Mcp.Batch.Runtime
             {
                 try
                 {
-                    return await NewRunner().RunAsync(body, files, mode, ct, progress, runId, onFailure)
+                    return await NewRunner().RunAsync(HostScript.Prepare(body), files, mode, ct, progress, runId, onFailure)
                         .ConfigureAwait(false);
                 }
                 catch (BatchAbortedException ex)

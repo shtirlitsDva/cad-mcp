@@ -6,10 +6,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Acd.Mcp.Batch;
 using Acd.Mcp.Ui;
+#if BRICSCAD
+using Teigha.DatabaseServices;
+using Bricscad.EditorInput;
+using Application = Bricscad.ApplicationServices.Application;
+using Document = Bricscad.ApplicationServices.Document;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Document = Autodesk.AutoCAD.ApplicationServices.Document;
+#endif
 using Mcp.Kernel;
 using Mcp.Kernel.Pipe;
 

@@ -3,7 +3,11 @@ using Acd.Mcp.Batch.Runtime;
 using Acd.Mcp.Batch.Ui;
 using Acd.Mcp.Pipe;
 using Acd.Mcp.Scripting;
+#if BRICSCAD
+using Bricscad.Windows;
+#else
 using Autodesk.AutoCAD.Windows;
+#endif
 
 namespace Acd.Mcp.Ui
 {

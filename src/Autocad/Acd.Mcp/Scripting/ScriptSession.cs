@@ -61,7 +61,8 @@ namespace Acd.Mcp.Scripting
             // strip that semicolon so CSharpScript treats the trailing expression
             // as the submission's return value. See TrailingExpressionRewriter
             // for the exact rules.
-            var submission = TrailingExpressionRewriter.AutoReturnTrailingExpression(code);
+            var submission = HostScript.Prepare(
+                TrailingExpressionRewriter.AutoReturnTrailingExpression(code));
 
             try
             {
@@ -186,11 +187,11 @@ namespace Acd.Mcp.Scripting
                     "System.Linq",
                     "System.IO",
                     "System.Text",
-                    "Autodesk.AutoCAD.ApplicationServices",
-                    "Autodesk.AutoCAD.DatabaseServices",
-                    "Autodesk.AutoCAD.Geometry",
-                    "Autodesk.AutoCAD.EditorInput",
-                    "Autodesk.AutoCAD.Runtime")
+                    HostScript.ApplicationServices,
+                    HostScript.DatabaseServices,
+                    HostScript.Geometry,
+                    HostScript.EditorInput,
+                    HostScript.Runtime)
                 .WithAllowUnsafe(false)
                 .WithOptimizationLevel(OptimizationLevel.Debug);
         }

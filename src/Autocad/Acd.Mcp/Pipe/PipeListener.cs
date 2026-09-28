@@ -1,7 +1,11 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text.Json;
+#if BRICSCAD
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
 using Mcp.Kernel.Pipe;
 
 namespace Acd.Mcp.Pipe

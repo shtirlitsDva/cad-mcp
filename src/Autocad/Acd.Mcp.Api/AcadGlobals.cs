@@ -1,9 +1,16 @@
 using System;
+#if BRICSCAD
+using Bricscad.ApplicationServices;
+using Teigha.DatabaseServices;
+using Bricscad.EditorInput;
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.Civil.ApplicationServices;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
 
 namespace Acd.Mcp.Api
 {
@@ -33,10 +40,13 @@ namespace Acd.Mcp.Api
         public Database Db => Doc.Database;
         public Editor Ed => Doc.Editor;
 
+#if !BRICSCAD
+        // BricsCAD has no Civil 3D API, so it has no CivilDoc global.
         // Null in non-Civil-3D drawings (e.g. plain .dwg opened in vanilla
         // AutoCAD). Callers either guard with a null check or wrap in try/catch
         // — same shape Civil scripts already expect from GetCivilDocument.
         public CivilDocument? CivilDoc => CivilApplication.ActiveDocument;
+#endif
 
         // The canonical REPL pattern `Acd.DataProvider.ReadAll(entity)`
         // hangs off this. Same identifier (`Acd`) the DTO .csx files use,

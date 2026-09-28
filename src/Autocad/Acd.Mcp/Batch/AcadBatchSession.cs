@@ -1,6 +1,10 @@
 using System;
 using Acd.Mcp.Batch;
+#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
+#endif
 
 namespace Acd.Mcp.Batch.Runtime
 {

@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- BricsCAD head of Acd.Mcp. Compiles the SAME sources (linked from
+       src/Autocad/Acd.Mcp) against BricsCAD's BrxMgd/TD_Mgd with BRICSCAD
+       defined; host differences are #if blocks in those sources, never forks.
+       Assembly name stays Acd.Mcp: same pipe (acd-mcp-<pid>), same bridge, same
+       tools, same %LOCALAPPDATA%\Acd.Mcp data. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Acd.Mcp</AssemblyName>
+    <RootNamespace>Acd.Mcp</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Configurations>Debug;Release</Configurations>
+    <Platforms>x64</Platforms>
+    <DefineConstants>$(DefineConstants);BRICSCAD</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <SourceDir>..\..\Autocad\Acd.Mcp\</SourceDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SourceDir)**\*.cs" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <Page Include="$(SourceDir)**\*.xaml" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**"
+          Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(SourceDir)Ui\Themes\CSharp-Dark.xshd"
+                      LogicalName="Acd.Mcp.Ui.Themes.CSharp-Dark.xshd" />
+    <EmbeddedResource Include="$(SourceDir)Resources\DtoSystem\*.csx"
+                      LogicalName="Acd.Mcp.Resources.DtoSystem.%(Filename)%(Extension)" />
+    <None Include="$(SourceDir)SharedAssemblies.Config.json" Link="SharedAssemblies.Config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- BricsCAD provides these at runtime (Private=False = never copied). -->
+    <Reference Include="BrxMgd"><HintPath>$(BricsCADPath)\BrxMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="TD_Mgd"><HintPath>$(BricsCADPath)\TD_Mgd.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel\Mcp.Kernel.csproj" />
+    <ProjectReference Include="..\..\Shared\Mcp.Kernel.Scripting\Mcp.Kernel.Scripting.csproj" />
+    <ProjectReference Include="..\..\Autocad\Acd.Mcp.Batch\Acd.Mcp.Batch.csproj" />
+    <ProjectReference Include="..\Bcad.Mcp.Api\Bcad.Mcp.Api.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+</Project>

@@ -1,7 +1,11 @@
 using System.Collections;
 using System.Reflection;
 using Acd.Mcp.Batch;
+#if BRICSCAD
+using Teigha.DatabaseServices;
+#else
 using Autodesk.AutoCAD.DatabaseServices;
+#endif
 
 namespace Acd.Mcp.Data
 {

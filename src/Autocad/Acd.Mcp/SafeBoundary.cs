@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.IO;
+#if BRICSCAD
+using Application = Bricscad.ApplicationServices.Application;
+#else
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+#endif
 
 namespace Acd.Mcp
 {

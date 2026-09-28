@@ -2,7 +2,8 @@ using System.Diagnostics;
 
 namespace Acd.Mcp.Bridge
 {
-    // Resolves which acad.exe the bridge should talk to. Three pieces:
+    // Resolves which CAD process (acad.exe or bricscad.exe; the plugin
+    // ships for both) the bridge should talk to. Three pieces:
     //   - Process enumeration: who claims to be AutoCAD?
     //   - Liveness check: of those, which actually owns the plugin pipe?
     //   - Preference handling: --pid <N> is a *hint*, not a pin (so an
@@ -29,11 +30,16 @@ namespace Acd.Mcp.Bridge
         // their own instance with a fake prober.
         public static AutoCadDiscovery Default { get; } = new();
 
-        // Returns the PIDs of every acad.exe on the box, sorted for
+        // Process names of the hosts the plugin runs in. The pipe name is
+        // the same in both, so everything past enumeration is host-blind.
+        private static readonly string[] HostProcessNames = ["acad", "bricscad"];
+
+        // Returns the PIDs of every host process on the box, sorted for
         // determinism. Virtual so tests can substitute the enumeration.
         public virtual int[] FindAutoCadPids()
         {
-            return Process.GetProcessesByName("acad")
+            return HostProcessNames
+                .SelectMany(Process.GetProcessesByName)
                 .Select(p => p.Id)
                 .OrderBy(id => id)
                 .ToArray();
@@ -65,7 +71,7 @@ namespace Acd.Mcp.Bridge
             {
                 throw new AcadTransportException(
                     AcadTransportFailure.NoAutoCadFound,
-                    "No AutoCAD instance found. Start AutoCAD and load the Acd.Mcp plugin.");
+                    "No AutoCAD or BricsCAD instance found. Start one and load the Acd.Mcp plugin.");
             }
 
             if (pids.Length == 1)
