@@ -1,0 +1,44 @@
+<!--
+  BricsCAD V26 palette. Same scheme as DevReload's BricsCAD palette: cool,
+  blue-leaning darks between BricsCAD's own two tones (#18191C icon strips,
+  #2D3135 ribbon), slate-navy surfaces, and text/greys from Bricsys' web
+  neutral scale (#E7EBF2 … #1A1A1F). Rule: no colour with R = G = B.
+  Same keys as Palette.Default.xaml; see there for how a palette is chosen.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="Color.Bg.Window">#FF25292E</Color>          <!-- panel body, a step darker than BricsCAD's #2D3135 -->
+    <Color x:Key="Color.Bg.Surface">#FF1F2633</Color>         <!-- bars and cards: slate navy -->
+    <Color x:Key="Color.Bg.Control">#FF2C3647</Color>         <!-- buttons / fields: lighter navy -->
+    <Color x:Key="Color.Bg.ControlHover">#FF36425A</Color>
+    <Color x:Key="Color.Bg.ControlPressed">#FF3E4B66</Color>
+    <Color x:Key="Color.Bg.RowHover">#FF2A3242</Color>
+    <Color x:Key="Color.Bg.Selected">#FF37629A</Color>
+    <Color x:Key="Color.Bg.SelectedHover">#FF3D78C5</Color>
+
+    <Color x:Key="Color.Bg.Inset">#FF1A1F28</Color>           <!-- editor / read-only display bg: deepest navy -->
+
+    <Color x:Key="Color.Border.Subtle">#FF3E4047</Color>      <!-- Bricsys neutral-700 -->
+    <Color x:Key="Color.Border.Focused">#FF3D78C5</Color>
+
+    <Color x:Key="Color.Fg.Primary">#FFE7EBF2</Color>         <!-- Bricsys neutral-100 -->
+    <Color x:Key="Color.Fg.Secondary">#FF9096A2</Color>       <!-- neutral-400 -->
+    <Color x:Key="Color.Fg.Disabled">#FF6F7480</Color>        <!-- neutral-500 -->
+    <Color x:Key="Color.Fg.Failure">#FFF19A9A</Color>
+    <Color x:Key="Color.Fg.Success">#FF8FD9A6</Color>
+    <Color x:Key="Color.Fg.Caret">#FFE7EBF2</Color>
+
+    <Color x:Key="Color.Status.Success">#FF4E7F5C</Color>
+    <Color x:Key="Color.Status.Error">#FFA94442</Color>
+
+    <Color x:Key="Color.ScrollBar.Track">#FF25292E</Color>
+    <Color x:Key="Color.ScrollBar.Thumb">#FF3E4047</Color>
+    <Color x:Key="Color.ScrollBar.ThumbHover">#FF565A64</Color>
+    <Color x:Key="Color.ScrollBar.ThumbDragging">#FF6F7480</Color>
+
+    <Color x:Key="Color.Accent">#FF3D78C5</Color>             <!-- BricsCAD active-toggle blue -->
+
+    <Color x:Key="Color.SlideSwitch.Live">#FFB05252</Color>   <!-- Test/Live switch, Live side -->
+
+</ResourceDictionary>

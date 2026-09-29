@@ -1,6 +1,11 @@
 using System;
 using System.Threading;
 using Acd.Mcp.Batch.Runtime;
+#if BRICSCAD
+using ScriptPalette = Acd.Mcp.Ui.ScriptPanel;
+#else
+using ScriptPalette = Acd.Mcp.Ui.ScriptPaletteSet;
+#endif
 
 namespace Acd.Mcp.Ui
 {
@@ -12,8 +17,10 @@ namespace Acd.Mcp.Ui
     // Lifetime:
     //   - Constructed in TryEnsureCore, so it's wired as soon as the
     //     plugin's core is ready (well before the listener starts).
-    //   - The actual ScriptPaletteSet is created on first EnsureVisible
-    //     or first ACDMCP_PALETTE — whichever wins.
+    //   - The actual palette (ScriptPaletteSet in AutoCAD, ScriptPanel in
+    //     BricsCAD) is created on first EnsureVisible
+    //     or first ACDMCP_PALETTE — whichever wins. BricsCAD also creates
+    //     it at plugin load, so its icon is on the panel stack from the start.
     //   - The factory + sync context are captured at construction; the
     //     host never reaches back into McpPlugin statics, so it survives
     //     unit substitution.
@@ -25,10 +32,10 @@ namespace Acd.Mcp.Ui
     internal sealed class PaletteHost : IPaletteHost
     {
         private readonly SynchronizationContext _mainSync;
-        private readonly Func<ScriptPaletteSet> _factory;
-        private ScriptPaletteSet? _palette;
+        private readonly Func<ScriptPalette> _factory;
+        private ScriptPalette? _palette;
 
-        public PaletteHost(SynchronizationContext mainSync, Func<ScriptPaletteSet> factory)
+        public PaletteHost(SynchronizationContext mainSync, Func<ScriptPalette> factory)
         {
             _mainSync = mainSync;
             _factory = factory;
@@ -38,13 +45,13 @@ namespace Acd.Mcp.Ui
 
         public IBatchUiState? CurrentBatchUiState => _palette?.BatchViewModel;
 
-        public ScriptPaletteSet? Palette => _palette;
+        public ScriptPalette? Palette => _palette;
 
         // Called from the ACDMCP_PALETTE command. The command path is
         // already on the main thread, so we can construct + show directly.
         // The host records the reference so RPC handlers see the new
         // palette on their next dispatch.
-        public ScriptPaletteSet GetOrCreateOnMainThread()
+        public ScriptPalette GetOrCreateOnMainThread()
         {
             _palette ??= _factory();
             return _palette;

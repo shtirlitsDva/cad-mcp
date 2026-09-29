@@ -1,7 +1,8 @@
 <!--
   Centralised dark theme for the Acd.Mcp SCRIPT + BATCH palette.
 
-  Matches AutoCAD 2025's own dark chrome. Every control type that has OS-themed
+  Colours come from the host's palette (Palette.*.xaml), so it matches AutoCAD's
+  or BricsCAD's own dark chrome. Every control type that has OS-themed
   parts (Button, TextBox, ListBox, ListBoxItem, ScrollBar + Thumb + RepeatButton,
   Expander + its toggle, Border) has a FULL ControlTemplate — never just a brush
   override on top of the default OS template, because that produces a "light
@@ -20,40 +21,14 @@
 
     <!-- ════════════════════════════════════════════════════════════════════ -->
     <!--  COLOURS                                                              -->
-    <!--  Blue-slate palette adopted from DimensioneringV2 — warmer than pure  -->
-    <!--  grey and reads much better against AutoCAD's own chrome.             -->
+    <!--  From the head's palette: Ui/Themes/Palette.xaml is one of            -->
+    <!--  Palette.*.xaml, chosen by ThemePalette in the csproj. Nothing below  -->
+    <!--  hard-codes a colour.                                                 -->
     <!-- ════════════════════════════════════════════════════════════════════ -->
 
-    <Color x:Key="Color.Bg.Window">#FF2D3442</Color>          <!-- palette body, deepest -->
-    <Color x:Key="Color.Bg.Surface">#FF3B4453</Color>         <!-- toolbar/section strips -->
-    <Color x:Key="Color.Bg.Control">#FF4A5568</Color>         <!-- button bg -->
-    <Color x:Key="Color.Bg.ControlHover">#FF5A6A80</Color>
-    <Color x:Key="Color.Bg.ControlPressed">#FF6A7A90</Color>
-    <Color x:Key="Color.Bg.RowHover">#FF3B4453</Color>        <!-- list row hover -->
-    <Color x:Key="Color.Bg.Selected">#FF4A6B8A</Color>        <!-- blue selection -->
-    <Color x:Key="Color.Bg.SelectedHover">#FF6A9BBA</Color>
-
-    <Color x:Key="Color.Bg.Inset">#FF252D3A</Color>           <!-- inset / read-only display bg -->
-
-    <Color x:Key="Color.Border.Subtle">#FF5A6A80</Color>
-    <Color x:Key="Color.Border.Focused">#FF6A9BBA</Color>
-
-    <Color x:Key="Color.Fg.Primary">#FFFFFFFF</Color>
-    <Color x:Key="Color.Fg.Secondary">#FFA0AEC0</Color>
-    <Color x:Key="Color.Fg.Disabled">#FF6A7280</Color>
-    <Color x:Key="Color.Fg.Failure">#FFFCA5A5</Color>
-    <Color x:Key="Color.Fg.Success">#FF86EFAC</Color>         <!-- green pair of Fg.Failure -->
-    <Color x:Key="Color.Fg.Caret">#FFFFFFFF</Color>
-
-    <Color x:Key="Color.Status.Success">#FF4A7C59</Color>
-    <Color x:Key="Color.Status.Error">#FFB94A4A</Color>
-
-    <Color x:Key="Color.ScrollBar.Track">#FF2D3442</Color>
-    <Color x:Key="Color.ScrollBar.Thumb">#FF4A5568</Color>
-    <Color x:Key="Color.ScrollBar.ThumbHover">#FF5A6A80</Color>
-    <Color x:Key="Color.ScrollBar.ThumbDragging">#FF6A7A90</Color>
-
-    <Color x:Key="Color.Accent">#FF6A9BBA</Color>
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Palette.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
 
     <!-- ════════════════════════════════════════════════════════════════════ -->
     <!--  BRUSHES                                                              -->
@@ -973,7 +948,6 @@
     <!--  IsChecked = false → Test (slate). IsChecked = true → Live (red).     -->
     <!-- ════════════════════════════════════════════════════════════════════ -->
 
-    <Color x:Key="Color.SlideSwitch.Live">#FFB85C5C</Color>
     <SolidColorBrush x:Key="Brush.SlideSwitch.Live" Color="{StaticResource Color.SlideSwitch.Live}"/>
 
     <Style x:Key="SlideSwitch.TestLive" TargetType="ToggleButton">
@@ -1046,6 +1020,55 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Track" Property="BorderBrush"
                                     Value="{DynamicResource Brush.Border.Focused}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!--  SIDE TABS  — vertical SCRIPT / BATCH tabs down the left edge, like   -->
+    <!--  AutoCAD's PaletteSet tabs. Used by SideTabHost (BricsCAD, whose      -->
+    <!--  panels have no tabs of their own). The selected tab takes the page   -->
+    <!--  colour (Bg.Window) so it reads as joined to the page.                -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+
+    <Style x:Key="SideTab.Strip" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Inset}"/>
+        <Setter Property="Padding" Value="3,6,0,6"/>
+    </Style>
+
+    <Style x:Key="SideTab" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Secondary}"/>
+        <Setter Property="Background" Value="{DynamicResource Brush.Bg.Surface}"/>
+        <Setter Property="FontFamily" Value="{StaticResource Font.Ui}"/>
+        <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Margin" Value="0,0,0,2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3,0,0,3" Padding="5,14">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ContentPresenter.LayoutTransform>
+                                    <RotateTransform Angle="-90"/>
+                                </ContentPresenter.LayoutTransform>
+                            </ContentPresenter>
+                        </Border>
+                        <Border x:Name="Marker" Width="3" HorizontalAlignment="Left" CornerRadius="3,0,0,3"
+                                Background="{DynamicResource Brush.Accent}" Visibility="Collapsed"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Bg.RowHover}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Bg.Window}"/>
+                            <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Fg.Primary}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

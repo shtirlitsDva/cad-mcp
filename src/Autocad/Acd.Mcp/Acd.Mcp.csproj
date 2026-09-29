@@ -30,6 +30,16 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- Which Ui\Themes\Palette.<name>.xaml is compiled as Ui/Themes/Palette.xaml,
+         the colours Theme.xaml builds on. Bcad.Mcp uses BricsCAD. -->
+    <ThemePalette>Default</ThemePalette>
+  </PropertyGroup>
+  <ItemGroup>
+    <Page Remove="Ui\Themes\Palette.*.xaml" />
+    <Page Include="Ui\Themes\Palette.$(ThemePalette).xaml" Link="Ui\Themes\Palette.xaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- AvalonEdit loads syntax definitions from .xshd. Ours is embedded and
          loaded explicitly in ScriptControl.xaml.cs so the dark colours don't

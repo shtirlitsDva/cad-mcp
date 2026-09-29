@@ -1,17 +1,15 @@
+#if !BRICSCAD
 using Acd.Mcp.Batch;
 using Acd.Mcp.Batch.Runtime;
 using Acd.Mcp.Batch.Ui;
 using Acd.Mcp.Pipe;
 using Acd.Mcp.Scripting;
-#if BRICSCAD
-using Bricscad.Windows;
-#else
 using Autodesk.AutoCAD.Windows;
-#endif
 
 namespace Acd.Mcp.Ui
 {
-    // PaletteSet wrapper. Two tabs:
+    // AutoCAD's container for the SCRIPT and BATCH views; BricsCAD uses
+    // ScriptPanel. PaletteSet wrapper. Two tabs:
     //   - SCRIPT — the interactive C# session against the active doc.
     //   - BATCH  — the side-loaded, multi-file batch authoring + runner.
     //
@@ -74,3 +72,4 @@ namespace Acd.Mcp.Ui
         }
     }
 }
+#endif

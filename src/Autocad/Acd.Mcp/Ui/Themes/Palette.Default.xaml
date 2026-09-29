@@ -1,0 +1,46 @@
+<!--
+  Default palette (AutoCAD): blue-slate colours adopted from DimensioneringV2 —
+  warmer than pure grey and reads much better against AutoCAD's own chrome.
+
+  Each head compiles ONE palette file as Ui/Themes/Palette.xaml (property
+  ThemePalette in the csproj); Theme.xaml merges it and builds every brush and
+  style on these keys. A palette holds colours only, and every palette defines
+  the same keys.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="Color.Bg.Window">#FF2D3442</Color>          <!-- palette body, deepest -->
+    <Color x:Key="Color.Bg.Surface">#FF3B4453</Color>         <!-- toolbar/section strips -->
+    <Color x:Key="Color.Bg.Control">#FF4A5568</Color>         <!-- button bg -->
+    <Color x:Key="Color.Bg.ControlHover">#FF5A6A80</Color>
+    <Color x:Key="Color.Bg.ControlPressed">#FF6A7A90</Color>
+    <Color x:Key="Color.Bg.RowHover">#FF3B4453</Color>        <!-- list row hover -->
+    <Color x:Key="Color.Bg.Selected">#FF4A6B8A</Color>        <!-- blue selection -->
+    <Color x:Key="Color.Bg.SelectedHover">#FF6A9BBA</Color>
+
+    <Color x:Key="Color.Bg.Inset">#FF252D3A</Color>           <!-- inset / read-only display bg -->
+
+    <Color x:Key="Color.Border.Subtle">#FF5A6A80</Color>
+    <Color x:Key="Color.Border.Focused">#FF6A9BBA</Color>
+
+    <Color x:Key="Color.Fg.Primary">#FFFFFFFF</Color>
+    <Color x:Key="Color.Fg.Secondary">#FFA0AEC0</Color>
+    <Color x:Key="Color.Fg.Disabled">#FF6A7280</Color>
+    <Color x:Key="Color.Fg.Failure">#FFFCA5A5</Color>
+    <Color x:Key="Color.Fg.Success">#FF86EFAC</Color>         <!-- green pair of Fg.Failure -->
+    <Color x:Key="Color.Fg.Caret">#FFFFFFFF</Color>
+
+    <Color x:Key="Color.Status.Success">#FF4A7C59</Color>
+    <Color x:Key="Color.Status.Error">#FFB94A4A</Color>
+
+    <Color x:Key="Color.ScrollBar.Track">#FF2D3442</Color>
+    <Color x:Key="Color.ScrollBar.Thumb">#FF4A5568</Color>
+    <Color x:Key="Color.ScrollBar.ThumbHover">#FF5A6A80</Color>
+    <Color x:Key="Color.ScrollBar.ThumbDragging">#FF6A7A90</Color>
+
+    <Color x:Key="Color.Accent">#FF6A9BBA</Color>
+
+    <Color x:Key="Color.SlideSwitch.Live">#FFB85C5C</Color>   <!-- Test/Live switch, Live side -->
+
+</ResourceDictionary>

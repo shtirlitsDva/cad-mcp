@@ -24,8 +24,10 @@
   <ItemGroup>
     <Compile Include="$(SourceDir)**\*.cs" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**"
              Link="%(RecursiveDir)%(Filename)%(Extension)" />
-    <Page Include="$(SourceDir)**\*.xaml" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**"
+    <Page Include="$(SourceDir)**\*.xaml" Exclude="$(SourceDir)obj\**;$(SourceDir)bin\**;$(SourceDir)Ui\Themes\Palette.*.xaml"
           Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- BricsCAD's colours for the shared Theme.xaml (see ThemePalette in Acd.Mcp.csproj). -->
+    <Page Include="$(SourceDir)Ui\Themes\Palette.BricsCAD.xaml" Link="Ui\Themes\Palette.xaml" />
     <EmbeddedResource Include="$(SourceDir)Ui\Themes\CSharp-Dark.xshd"
                       LogicalName="Acd.Mcp.Ui.Themes.CSharp-Dark.xshd" />
     <EmbeddedResource Include="$(SourceDir)Resources\DtoSystem\*.csx"

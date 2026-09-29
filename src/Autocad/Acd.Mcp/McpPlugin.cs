@@ -12,9 +12,11 @@ using Acd.Mcp.Ui;
 #if BRICSCAD
 using Teigha.Runtime;
 using Application = Bricscad.ApplicationServices.Application;
+using ScriptPalette = Acd.Mcp.Ui.ScriptPanel;
 #else
 using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using ScriptPalette = Acd.Mcp.Ui.ScriptPaletteSet;
 #endif
 using Exception = System.Exception;
 using SynchronizationContext = System.Threading.SynchronizationContext;
@@ -164,6 +166,16 @@ namespace Acd.Mcp
                         subscribe:   () => Application.Idle += AutoStartOnceOnIdle,
                         unsubscribe: () => Application.Idle -= AutoStartOnceOnIdle);
                 }
+
+#if BRICSCAD
+                // BricsCAD panels are created at load, like Bricsys' own
+                // samples do, so the ACD-MCP icon is on the panel stack from
+                // the start. ACDMCP_PALETTE then only brings it forward.
+                if (TryEnsureCore(out var reason))
+                    _paletteHost!.GetOrCreateOnMainThread();
+                else
+                    SafeBoundary.Info("Initialize", $"Panel not created: {reason}");
+#endif
             });
         }
 
@@ -502,7 +514,7 @@ namespace Acd.Mcp
                         _mainSync,
                         factory: () =>
                         {
-                            var p = new ScriptPaletteSet(_executor!, _session!, _log!, _batchExecutor!, _scriptEditor!);
+                            var p = new ScriptPalette(_executor!, _session!, _log!, _batchExecutor!, _scriptEditor!);
                             // Two steps in LIFO: register Dispose first
                             // so Close runs before Dispose on tear-down.
                             // The Visible guard preserves the original
