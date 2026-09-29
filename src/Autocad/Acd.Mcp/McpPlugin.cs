@@ -147,25 +147,21 @@ namespace Acd.Mcp
                         throwOnError: false);
                 });
 
-                // Auto-start: open the named pipe as soon as the command
-                // loop is idle. Was DEBUG-only until fragility-fix v2 —
-                // promoted to RELEASE because requiring users to type
-                // ACDMCP_START after every AutoCAD launch was a silent
-                // tax with no benefit. Users who genuinely want the
-                // manual control can opt out via the config file (see
-                // ShouldAutoStart for the path + format).
+                // Auto-start: open the named pipe once Initialize has
+                // returned and the main message loop runs. Was DEBUG-only
+                // until fragility-fix v2 — promoted to RELEASE because
+                // requiring users to type ACDMCP_START after every AutoCAD
+                // launch was a silent tax with no benefit. Users who
+                // genuinely want the manual control can opt out via the
+                // config file (see ShouldAutoStart for the path + format).
                 //
-                // Hook removes itself on first fire. Terminate's
-                // ResourceManager also -= to cover the "plugin unloaded
-                // before Idle ever fired" case (Application.Idle is
-                // process-lifetime in the default ALC, so a leftover
-                // subscription would pin our collectible ALC).
+                // Posted, not Application.Idle: BricsCAD raises Idle from
+                // MFC's OnIdle and skips it while input is queued, so an
+                // instance started by a script or agent may never fire it
+                // (measured: 0 Idle events, Post ran within 10 ms). Tool
+                // calls reach the main thread the same way (Pipe/MainThread).
                 if (ShouldAutoStart())
-                {
-                    _resources!.RegisterEvent("Application.Idle/AutoStart",
-                        subscribe:   () => Application.Idle += AutoStartOnceOnIdle,
-                        unsubscribe: () => Application.Idle -= AutoStartOnceOnIdle);
-                }
+                    _mainSync?.Post(_ => AutoStart(), null);
 
 #if BRICSCAD
                 // BricsCAD panels are created at load, like Bricsys' own
@@ -179,10 +175,11 @@ namespace Acd.Mcp
             });
         }
 
-        private static void AutoStartOnceOnIdle(object? sender, EventArgs e)
+        private static void AutoStart()
         {
-            Application.Idle -= AutoStartOnceOnIdle;
-            SafeBoundary.Run("McpPlugin.AutoStartOnceOnIdle", () => Start());
+            // Unloaded before the post ran: nothing to start.
+            if (_resources is null) return;
+            SafeBoundary.Run("McpPlugin.AutoStart", () => Start());
         }
 
         // Reads %LOCALAPPDATA%\Acd.Mcp\config.json for an `auto_start`
@@ -523,10 +520,16 @@ namespace Acd.Mcp
                             // Close() when its wrapped Window is
                             // half-initialised.
                             _resources!.Register("palette.Dispose", p);
+#if !BRICSCAD
+                            // BricsCAD: no Close step. On host exit BricsCAD
+                            // frees the native panel BEFORE plugins terminate,
+                            // so any Panel member call here is an access
+                            // violation that kills the process (not catchable).
                             _resources!.RegisterAction("palette.Close", () =>
                             {
                                 if (p is { Visible: true }) p.Close();
                             });
+#endif
                             return p;
                         });
                 }

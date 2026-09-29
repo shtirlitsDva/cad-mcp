@@ -87,10 +87,6 @@ namespace Acd.Mcp.Ui
             BringForward();
         }
 
-        // Plugin teardown. The panel stays where the user docked it; Dispose
-        // empties it, and the next load fills it again.
-        public void Close() { }
-
         // Visible = true alone does nothing on an open panel. Hide + show is
         // what -TOOLPANEL Show does: the panel stays in its stack and comes
         // to the front.
@@ -100,6 +96,9 @@ namespace Acd.Mcp.Ui
             _panel.Visible = true;
         }
 
+        // Plugin teardown: the panel stays where the user docked it; the next
+        // load fills it again. Touches only managed WPF objects, never _panel:
+        // on host exit the native panel is already freed (access violation).
         public void Dispose()
         {
             _host.Content = null;
